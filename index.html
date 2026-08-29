@@ -507,9 +507,68 @@ var RANKS=[
 var WEATHER=[["☀️ 晴れ",26],["⛅ くもり",23],["🌧️ 雨",19],["🌤️ 晴れときどき曇り",25]];
 
 /* ---------------- state ---------------- */
+var SEED_T=Date.now();
 var S=load()||{
-  uid:makeId(), pt:0, trust:50, visited:[], posts:[], ledger:[],
-  palette:{}, spins:0, draft:null
+  uid:makeId(), pt:859, trust:64,
+  visited:[1,2,3,4,5,6,7,8],
+  posts:[
+    {id:1001,venue:1,venueName:"麺屋 こだま",dish:"醤油ラーメン",sat:4,
+     vals:{genre:"ラーメン",amount:"ちょうど",rec:"また行く",price:"850",hunger:"4"},
+     stamped:true,weather:["☀️ 晴れ",26,1012],first:true,pts:98,rouletteId:null,
+     t:SEED_T-9*864e5,edits:[]},
+    {id:1002,venue:2,venueName:"大衆食堂 みなみ",dish:"生姜焼き定食",sat:3,
+     vals:{genre:"定食",amount:"多め",party:"1人",note:"優しい味でほっとした。",price:"780"},
+     stamped:true,weather:["⛅ くもり",23,1015],first:true,pts:103,rouletteId:null,
+     t:SEED_T-8*864e5,
+     edits:[{f:"何を食べたか",o:"生姜焼き",n:"生姜焼き定食",t:SEED_T-7*864e5-12*3600e3,reason:"打ち間違えた"}]},
+    {id:1003,venue:3,venueName:"カレー研究所 ボンベイ通り",dish:"チキンカレー",sat:5,
+     vals:{genre:"カレー",amount:"ちょうど",mood:"上機嫌",rec:"また行く"},
+     stamped:true,weather:["🌤️ 晴れときどき曇り",25,1009],first:true,pts:88,rouletteId:null,
+     t:SEED_T-7*864e5,edits:[]},
+    {id:1004,venue:4,venueName:"焼鳥 とりいち",dish:"もも焼き串盛り合わせ",sat:4,
+     vals:{genre:"居酒屋",party:"4人",note:"みんなでわいわい、串の種類が豊富。"},
+     stamped:false,weather:null,first:true,pts:73,rouletteId:null,
+     t:SEED_T-6*864e5,edits:[]},
+    {id:1005,venue:5,venueName:"パスタ食堂 ノルド",dish:"きのこのクリームパスタ",sat:5,
+     vals:{genre:"洋食",price:"1300",rec:"また行く",hunger:"5"},
+     stamped:true,weather:["☀️ 晴れ",27,1011],first:true,pts:93,rouletteId:null,
+     t:SEED_T-5*864e5,edits:[]},
+    {id:1006,venue:6,venueName:"天ぷら 一二三",dish:"天丼",sat:3,
+     vals:{genre:"和食",amount:"多め",party:"2人"},
+     stamped:true,weather:["🌧️ 雨",19,1006],first:true,pts:83,rouletteId:null,
+     t:SEED_T-4*864e5,edits:[]},
+    {id:1007,venue:7,venueName:"餃子酒場 チャオ",dish:"焼き餃子",sat:4,
+     vals:{genre:"中華",rec:"気が向いたら",note:"味は良いが少し待った。"},
+     stamped:true,weather:["⛅ くもり",22,1014],first:true,pts:90,rouletteId:null,
+     t:SEED_T-3*864e5,edits:[]},
+    {id:1008,venue:8,venueName:"カフェ 木漏れ日",dish:"自家焙煎ブレンドとチーズケーキ",sat:5,
+     vals:{genre:"カフェ",amount:"ちょうど",mood:"穏やか",price:"700"},
+     stamped:true,weather:["☀️ 晴れ",28,1013],first:true,pts:93,rouletteId:null,
+     t:SEED_T-2*864e5,edits:[]},
+    {id:1009,venue:1,venueName:"麺屋 こだま",dish:"味噌ラーメン",sat:4,
+     vals:{genre:"ラーメン",amount:"少なめ",rec:"また行く"},
+     stamped:true,weather:["🌤️ 晴れときどき曇り",24,1010],first:false,pts:55,rouletteId:null,
+     t:SEED_T-1*864e5,edits:[]},
+    {id:1010,venue:3,venueName:"カレー研究所 ボンベイ通り",dish:"スパイスキーマカレー（大盛り）",sat:4,
+     vals:{genre:"カレー",price:"1200",note:"ルーレットで初めて選ばれた一軒。想像以上にスパイシーだった。"},
+     stamped:true,weather:["☀️ 晴れ",29,1008],first:false,pts:80,rouletteId:"R"+(SEED_T-5*3600e3),
+     t:SEED_T-5*3600e3,edits:[]}
+  ],
+  ledger:[
+    {n:80,r:"投稿：カレー研究所 ボンベイ通り（ルーレット由来 +15）",t:SEED_T-5*3600e3},
+    {n:55,r:"投稿：麺屋 こだま",t:SEED_T-1*864e5},
+    {n:93,r:"投稿：カフェ 木漏れ日（初訪問 +30）",t:SEED_T-2*864e5},
+    {n:90,r:"投稿：餃子酒場 チャオ（初訪問 +30）",t:SEED_T-3*864e5},
+    {n:83,r:"投稿：天ぷら 一二三（初訪問 +30）",t:SEED_T-4*864e5},
+    {n:93,r:"投稿：パスタ食堂 ノルド（初訪問 +30）",t:SEED_T-5*864e5},
+    {n:73,r:"投稿：焼鳥 とりいち（初訪問 +30）",t:SEED_T-6*864e5},
+    {n:88,r:"投稿：カレー研究所 ボンベイ通り（初訪問 +30）",t:SEED_T-7*864e5},
+    {n:3,r:"自分から誤りを訂正（打ち間違えた）",t:SEED_T-7*864e5-12*3600e3},
+    {n:103,r:"投稿：大衆食堂 みなみ（初訪問 +30）",t:SEED_T-8*864e5},
+    {n:98,r:"投稿：麺屋 こだま（初訪問 +30）",t:SEED_T-9*864e5}
+  ],
+  palette:{price:true,note:true,amount:true,genre:true,rec:true,hunger:true,mood:true,party:true},
+  spins:0, draft:null
 };
 if(!S.palette)S.palette={};
 
