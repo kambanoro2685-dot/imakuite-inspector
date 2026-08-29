@@ -1,0 +1,1180 @@
+<title>ImaKuite!Inspector! 試作機</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+
+<style>
+:root{
+  --ground:#F1F4F1; --surface:#FBFCFA; --surface-2:#E7ECE6; --surface-3:#DCE3DA;
+  --line:#CBD4C9; --line-soft:#DFE5DD;
+  --ink:#17211D; --ink-2:#42514A; --ink-3:#6B7A72;
+  --indigo:#24467A; --indigo-soft:#E1E8F3;
+  --amber:#B57A05; --amber-soft:#F6ECD5;
+  --good:#2C7355; --good-soft:#DDEEE5; --warn:#9A6600; --crit:#A03328;
+  --shadow:0 1px 2px rgba(23,33,29,.06), 0 10px 30px rgba(23,33,29,.08);
+  --f-disp:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#101512; --surface:#1A211D; --surface-2:#232B26; --surface-3:#2C352E;
+    --line:#39423B; --line-soft:#2B342E;
+    --ink:#E6ECE7; --ink-2:#B3BFB7; --ink-3:#8A968E;
+    --indigo:#8FB2E6; --indigo-soft:#1E2B3E;
+    --amber:#E0AC46; --amber-soft:#332A16;
+    --good:#6FBE97; --good-soft:#1B2E25; --warn:#D9A73F; --crit:#E58B7E;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 34px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101512; --surface:#1A211D; --surface-2:#232B26; --surface-3:#2C352E;
+  --line:#39423B; --line-soft:#2B342E;
+  --ink:#E6ECE7; --ink-2:#B3BFB7; --ink-3:#8A968E;
+  --indigo:#8FB2E6; --indigo-soft:#1E2B3E;
+  --amber:#E0AC46; --amber-soft:#332A16;
+  --good:#6FBE97; --good-soft:#1B2E25; --warn:#D9A73F; --crit:#E58B7E;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 34px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-body);line-height:1.7;-webkit-font-smoothing:antialiased;}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+:focus-visible{outline:2px solid var(--indigo);outline-offset:2px;border-radius:3px;}
+
+.page{max-width:940px;margin:0 auto;padding:36px 20px 60px;display:flex;flex-direction:column;gap:22px;align-items:center;}
+.page-head{text-align:center;display:flex;flex-direction:column;gap:6px;max-width:60ch;}
+.page-head h1{font-family:var(--f-disp);font-size:clamp(22px,4vw,32px);line-height:1.25;font-weight:700;}
+.page-head h1 .bang{color:var(--crit);}
+.page-head p{font-size:13.5px;color:var(--ink-3);}
+.page-head .cf{font-size:13px;color:var(--amber);font-weight:700;}
+
+/* ---- phone frame ---- */
+.phone{
+  width:100%;max-width:412px;height:min(830px,88vh);
+  background:var(--surface);border:1px solid var(--line);border-radius:26px;
+  box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;position:relative;
+}
+.statusbar{
+  flex:none;display:flex;justify-content:space-between;align-items:center;
+  padding:9px 18px 7px;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3);
+  border-bottom:1px solid var(--line-soft);background:var(--surface-2);
+}
+.statusbar .uid{letter-spacing:.06em;}
+.scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;}
+.screen{padding:18px 18px 26px;display:flex;flex-direction:column;gap:16px;}
+.screen[hidden]{display:none;}
+
+/* ---- tab bar ---- */
+.tabs{
+  flex:none;display:grid;grid-template-columns:repeat(5,1fr);
+  border-top:1px solid var(--line);background:var(--surface-2);
+}
+.tab{padding:9px 2px 11px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-3);transition:color .15s;}
+.tab .ti{font-size:17px;line-height:1;}
+.tab .tl{font-size:10px;font-weight:700;letter-spacing:.02em;}
+.tab[aria-selected="true"]{color:var(--indigo);}
+.tab[aria-selected="true"] .tl{color:var(--indigo);}
+
+/* ---- typography ---- */
+.sh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+.sh h2{font-family:var(--f-disp);font-size:19px;font-weight:700;line-height:1.3;}
+.sh .sub{font-size:11px;font-family:var(--f-mono);color:var(--ink-3);letter-spacing:.06em;}
+.lbl{font-size:11px;font-family:var(--f-mono);letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;}
+.muted{font-size:12.5px;color:var(--ink-3);line-height:1.6;}
+
+/* ---- cards ---- */
+.card{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:9px;}
+.card.flat{background:transparent;border-style:dashed;}
+.livebar{
+  display:flex;gap:9px;align-items:stretch;
+}
+.stat{
+  flex:1;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;
+  padding:11px 12px;display:flex;flex-direction:column;gap:1px;
+}
+.stat .v{font-family:var(--f-mono);font-size:21px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums;}
+.stat .l{font-size:10.5px;color:var(--ink-3);line-height:1.4;}
+.stat.hot .v{color:var(--crit);}
+.stat.pt .v{color:var(--good);}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--crit);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ---- buttons ---- */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:13px 16px;border-radius:9px;font-weight:700;font-size:14.5px;
+  background:var(--indigo);color:var(--surface);transition:transform .1s,filter .15s;
+}
+:root:not([data-theme="light"]) .btn{color:#0F1512;}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .btn{color:#FBFCFA;}}
+:root[data-theme="light"] .btn{color:#FBFCFA;}
+.btn:active{transform:scale(.985);}
+.btn:hover{filter:brightness(1.08);}
+.btn.big{padding:17px;font-size:16px;border-radius:12px;}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+.btn.ghost:hover{background:var(--surface-2);filter:none;}
+.btn.amber{background:var(--amber);}
+.btn.sm{padding:8px 12px;font-size:12.5px;border-radius:7px;}
+.btn[disabled]{opacity:.4;cursor:not-allowed;}
+.btnrow{display:flex;gap:8px;}
+.btnrow>*{flex:1;}
+
+/* ---- chips / choices ---- */
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.ch{
+  padding:7px 12px;border-radius:20px;border:1px solid var(--line);
+  font-size:13px;background:var(--surface);transition:.15s;
+}
+.ch:hover{border-color:var(--indigo);}
+.ch[aria-pressed="true"]{background:var(--indigo);border-color:var(--indigo);color:var(--surface);font-weight:700;}
+:root:not([data-theme="light"]) .ch[aria-pressed="true"]{color:#0F1512;}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .ch[aria-pressed="true"]{color:#FBFCFA;}}
+:root[data-theme="light"] .ch[aria-pressed="true"]{color:#FBFCFA;}
+
+.faces{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+.face{
+  padding:9px 2px 7px;border:1px solid var(--line);border-radius:9px;background:var(--surface);
+  display:flex;flex-direction:column;align-items:center;gap:2px;transition:.15s;
+}
+.face .e{font-size:21px;line-height:1;}
+.face .n{font-size:9.5px;color:var(--ink-3);}
+.face[aria-pressed="true"]{border-color:var(--amber);background:var(--amber-soft);}
+.face[aria-pressed="true"] .n{color:var(--amber);font-weight:700;}
+
+input[type=text],textarea,select{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface);color:var(--ink);font-family:var(--f-body);font-size:14px;
+}
+textarea{resize:vertical;min-height:74px;line-height:1.7;}
+input[type=range]{width:100%;accent-color:var(--amber);height:24px;}
+
+/* ---- point flash ---- */
+.ptbar{
+  position:sticky;bottom:0;margin:2px -18px -26px;padding:12px 18px 16px;
+  background:var(--surface);border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;
+}
+.ptbar .sum{flex:none;display:flex;flex-direction:column;line-height:1.2;}
+.ptbar .sum .v{font-family:var(--f-mono);font-size:22px;font-weight:600;color:var(--good);font-variant-numeric:tabular-nums;}
+.ptbar .sum .l{font-size:9.5px;color:var(--ink-3);font-family:var(--f-mono);letter-spacing:.1em;}
+.ptbar .btn{flex:1;}
+.pop{
+  position:absolute;right:22px;font-family:var(--f-mono);font-weight:600;font-size:15px;color:var(--good);
+  pointer-events:none;animation:rise 1s ease-out forwards;
+}
+@keyframes rise{0%{opacity:0;transform:translateY(6px)}20%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}
+
+/* ---- palette rows ---- */
+.prow{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:1px solid var(--line-soft);border-radius:9px;background:var(--surface);
+  width:100%;text-align:left;transition:.15s;
+}
+.prow:hover{border-color:var(--indigo);}
+.prow .nm{flex:1;font-size:13.5px;font-weight:500;}
+.prow .pv{font-family:var(--f-mono);font-size:12px;color:var(--good);font-weight:600;}
+.prow .sw{
+  flex:none;width:36px;height:21px;border-radius:12px;background:var(--surface-3);
+  position:relative;transition:background .18s;
+}
+.prow .sw::after{
+  content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;
+  background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .18s;
+}
+.prow[aria-pressed="true"] .sw{background:var(--good);}
+.prow[aria-pressed="true"] .sw::after{transform:translateX(15px);}
+
+/* ---- venue list ---- */
+.vrow{
+  display:flex;flex-direction:column;gap:6px;padding:12px 13px;width:100%;text-align:left;
+  border:1px solid var(--line-soft);border-radius:10px;background:var(--surface);transition:.15s;
+}
+.vrow:hover{border-color:var(--indigo);}
+.vrow .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+.vrow .nm{font-weight:700;font-size:14.5px;line-height:1.4;}
+.vrow .sc{font-family:var(--f-mono);font-size:14px;font-weight:600;color:var(--amber);flex:none;font-variant-numeric:tabular-nums;}
+.vrow .meta{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.tag{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.04em;padding:2px 6px;border-radius:3px;
+  border:1px solid var(--line);color:var(--ink-3);white-space:nowrap;
+}
+.tag.new{color:var(--crit);border-color:currentColor;font-weight:600;}
+.tag.cnt{color:var(--indigo);border-color:currentColor;}
+.tag.off{color:var(--good);border-color:currentColor;}
+
+/* ---- roulette ---- */
+.wheel{
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);
+}
+.wcell{
+  padding:11px 14px;border-bottom:1px solid var(--line-soft);font-size:13.5px;
+  display:flex;justify-content:space-between;gap:8px;transition:background .08s;
+}
+.wcell:last-child{border-bottom:0;}
+.wcell .d{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3);flex:none;}
+.wcell.on{background:var(--amber);color:#1A1206;font-weight:700;}
+.wcell.on .d{color:#1A1206;}
+.wcell.win{background:var(--good);color:#08150F;font-weight:700;}
+.wcell.win .d{color:#08150F;}
+.result{
+  border:2px solid var(--good);border-radius:12px;padding:16px;text-align:center;
+  display:flex;flex-direction:column;gap:5px;background:var(--good-soft);
+}
+.result .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.14em;color:var(--good);font-weight:600;}
+.result .n{font-family:var(--f-disp);font-size:23px;font-weight:700;line-height:1.3;}
+
+/* ---- history / mypage ---- */
+.hrow{
+  display:flex;flex-direction:column;gap:5px;padding:12px 13px;
+  border:1px solid var(--line-soft);border-radius:10px;background:var(--surface);
+}
+.hrow .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline;}
+.hrow .n{font-weight:700;font-size:14px;}
+.hrow .p{font-family:var(--f-mono);font-size:12.5px;color:var(--good);font-weight:600;flex:none;}
+.hrow .d{font-size:12px;color:var(--ink-2);}
+.hrow .acts{display:flex;gap:6px;margin-top:2px;}
+
+.meter{height:7px;border-radius:4px;background:var(--surface-3);overflow:hidden;}
+.meter i{display:block;height:100%;background:var(--indigo);border-radius:4px;transition:width .5s;}
+.meter.trust i{background:var(--good);}
+
+.ledger{display:flex;flex-direction:column;gap:0;border:1px solid var(--line-soft);border-radius:9px;overflow:hidden;}
+.lrow{display:flex;justify-content:space-between;gap:8px;padding:9px 12px;font-size:12.5px;border-bottom:1px solid var(--line-soft);background:var(--surface);}
+.lrow:last-child{border-bottom:0;}
+.lrow .amt{font-family:var(--f-mono);font-weight:600;color:var(--good);flex:none;font-variant-numeric:tabular-nums;}
+.lrow .amt.minus{color:var(--crit);}
+
+/* ---- sheet ---- */
+.sheet{
+  position:absolute;inset:0;background:rgba(10,16,13,.55);
+  display:flex;align-items:flex-end;z-index:30;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.sheet.show{opacity:1;pointer-events:auto;}
+.sheet .inner{
+  width:100%;background:var(--surface);border-radius:16px 16px 0 0;
+  padding:18px 18px 20px;display:flex;flex-direction:column;gap:12px;
+  max-height:82%;overflow-y:auto;transform:translateY(14px);transition:transform .2s;
+  border-top:1px solid var(--line);
+}
+.sheet.show .inner{transform:translateY(0);}
+.sheet h3{font-family:var(--f-disp);font-size:17px;font-weight:700;}
+.oldval{
+  font-family:var(--f-mono);font-size:13px;padding:9px 11px;border-radius:7px;
+  background:var(--surface-2);border:1px solid var(--line-soft);color:var(--ink-2);
+  text-decoration:line-through;
+}
+
+/* ---- toast ---- */
+.toast{
+  position:absolute;left:16px;right:16px;bottom:74px;padding:12px 15px;border-radius:10px;
+  background:var(--ink);color:var(--ground);font-size:13px;font-weight:500;line-height:1.5;
+  box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transform:translateY(8px);
+  transition:opacity .25s,transform .25s;pointer-events:none;z-index:20;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+.notes{max-width:412px;width:100%;display:flex;flex-direction:column;gap:8px;}
+.notes .lbl{margin-bottom:2px;}
+.notes ul{padding-left:1.15em;font-size:12.5px;color:var(--ink-2);line-height:1.75;}
+.notes li::marker{color:var(--ink-3);}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+</style>
+
+<div class="page">
+  <div class="page-head">
+    <h1>ImaKuite<span class="bang">!</span>Inspector<span class="bang">!</span></h1>
+    <p class="cf">今日のあなたの投稿が、未来のあなたの「食べたい」を支えます。</p>
+    <p>第1段階プロトタイプ／実際に触って入力の手触りを確かめてください。データはこの端末にだけ保存されます。</p>
+  </div>
+
+  <div class="phone">
+    <div class="statusbar">
+      <span class="uid" id="uid">IKI-————</span>
+      <span id="rankmini">見習い · 0pt</span>
+    </div>
+
+    <div class="scroll" id="scroll">
+
+      <!-- ============ HOME ============ -->
+      <section class="screen" id="sc-home">
+        <div class="sh"><h2>今日の捜査状況</h2><span class="sub" id="today">—</span></div>
+        <div class="livebar">
+          <div class="stat hot"><span class="v"><span class="dot"></span><span id="liveCount">—</span></span><span class="l">今この時間に投稿中</span></div>
+          <div class="stat"><span class="v" id="meshCount">—</span><span class="l">近く（約500m）に</span></div>
+        </div>
+        <button class="btn big" data-act="enter">🚪 入店を記録する</button>
+        <p class="muted">押した瞬間に、座標・時刻・天気・気温・気圧をまとめて封入します。入力するのはこの1回だけ。</p>
+
+        <div class="card" id="memoryCard">
+          <span class="lbl">記憶の再捜査</span>
+          <p style="font-size:13.5px;line-height:1.65;" id="memoryText">1年前の今日、あなたは <b>麺屋 こだま</b> で <b>味噌ラーメン</b> を食べていました。満足度は 4。</p>
+          <button class="btn ghost sm" data-act="go-search" style="align-self:flex-start;">似た店をさがす</button>
+        </div>
+
+        <div class="card flat">
+          <span class="lbl">迷っているなら</span>
+          <button class="btn amber" data-act="go-roulette">🎯 ルーレットで決める</button>
+        </div>
+      </section>
+
+      <!-- ============ POST ============ -->
+      <section class="screen" id="sc-post" hidden>
+        <div class="sh"><h2>クイック投稿</h2><span class="sub" id="stampState">未打刻</span></div>
+
+        <div>
+          <span class="lbl">① どこで</span>
+          <div class="chips" id="venuePick" style="margin-top:7px;"></div>
+        </div>
+
+        <div>
+          <span class="lbl">② 何を食べた</span>
+          <input type="text" id="fDish" placeholder="例：味噌ラーメン" style="margin-top:7px;" autocomplete="off">
+          <button class="btn ghost sm" data-act="ai" style="margin-top:7px;">📷 写真からAIに下書きさせる</button>
+        </div>
+
+        <div>
+          <span class="lbl">③ 満足度</span>
+          <div class="faces" id="fSat" style="margin-top:7px;">
+            <button class="face" data-v="1"><span class="e">😞</span><span class="n">いまいち</span></button>
+            <button class="face" data-v="2"><span class="e">😐</span><span class="n">ふつう</span></button>
+            <button class="face" data-v="3"><span class="e">🙂</span><span class="n">good</span></button>
+            <button class="face" data-v="4"><span class="e">😋</span><span class="n">うまい</span></button>
+            <button class="face" data-v="5"><span class="e">🤩</span><span class="n">絶品</span></button>
+          </div>
+        </div>
+
+        <div id="extraFields" style="display:flex;flex-direction:column;gap:16px;"></div>
+
+        <button class="btn ghost" data-act="go-palette">⚙️ 入力する項目を選ぶ</button>
+
+        <div class="ptbar">
+          <span class="sum"><span class="v" id="ptPreview">+25</span><span class="l">POINT</span></span>
+          <button class="btn" data-act="submit">この内容で投稿</button>
+        </div>
+      </section>
+
+      <!-- ============ PALETTE ============ -->
+      <section class="screen" id="sc-palette" hidden>
+        <div class="sh"><h2>項目パレット</h2><span class="sub">選んだ分だけ加点</span></div>
+        <p class="muted">最初は3項目だけ。使いたい項目をONにすると投稿画面に現れます。いつでも戻せます。</p>
+        <div id="paletteList" style="display:flex;flex-direction:column;gap:7px;"></div>
+        <button class="btn" data-act="go-post">投稿画面にもどる</button>
+      </section>
+
+      <!-- ============ SEARCH ============ -->
+      <section class="screen" id="sc-search" hidden>
+        <div class="sh"><h2>店をさがす</h2><span class="sub" id="hitCount">—</span></div>
+        <div class="chips" id="filterGenre"></div>
+        <div class="chips" id="filterSort"></div>
+        <div id="venueList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </section>
+
+      <!-- ============ VENUE DETAIL ============ -->
+      <section class="screen" id="sc-venue" hidden>
+        <button class="btn ghost sm" data-act="go-search" style="align-self:flex-start;">← 一覧にもどる</button>
+        <div id="venueDetail" style="display:flex;flex-direction:column;gap:14px;"></div>
+      </section>
+
+      <!-- ============ ROULETTE ============ -->
+      <section class="screen" id="sc-roulette" hidden>
+        <div class="sh"><h2>ルーレット</h2><span class="sub" id="spinLeft">残り3回</span></div>
+        <div>
+          <span class="lbl">条件</span>
+          <div class="chips" id="rGenre" style="margin-top:7px;"></div>
+        </div>
+        <div>
+          <span class="lbl">重みづけ</span>
+          <div class="chips" id="rWeight" style="margin-top:7px;"></div>
+        </div>
+        <div class="wheel" id="wheel"></div>
+        <div id="rResult"></div>
+        <button class="btn amber big" data-act="spin">🎯 回す</button>
+      </section>
+
+      <!-- ============ MYPAGE ============ -->
+      <section class="screen" id="sc-my" hidden>
+        <div class="sh"><h2>マイページ</h2><span class="sub" id="myUid">—</span></div>
+
+        <div class="livebar">
+          <div class="stat pt"><span class="v" id="myPt">0</span><span class="l">総ポイント</span></div>
+          <div class="stat"><span class="v" id="myTrust">50</span><span class="l">信頼スコア</span></div>
+        </div>
+
+        <div class="card">
+          <div class="sh"><span class="lbl" id="myRank">見習い</span><span class="sub" id="myNext">次まで 500pt</span></div>
+          <div class="meter"><i id="myBar" style="width:0%"></i></div>
+          <p class="muted" id="myUnlock">クイック投稿とルーレット（1日3回）が使えます。</p>
+        </div>
+
+        <div class="card">
+          <span class="lbl">信頼スコアの効果</span>
+          <div class="meter trust"><i id="myTrustBar" style="width:50%"></i></div>
+          <p class="muted" id="myTrustNote">標準 · 推薦への重み ×1.0</p>
+          <div class="btnrow">
+            <button class="btn ghost sm" data-act="sim-report">誤りを指摘された</button>
+            <button class="btn ghost sm" data-act="sim-good">指摘が採用された</button>
+          </div>
+        </div>
+
+        <div>
+          <span class="lbl">投稿履歴</span>
+          <div id="history" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+        </div>
+
+        <div>
+          <span class="lbl">ポイント台帳（追記のみ）</span>
+          <div class="ledger" id="ledger" style="margin-top:8px;"></div>
+        </div>
+
+        <button class="btn ghost sm" data-act="reset">この端末のデータを消す</button>
+      </section>
+
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab" data-scr="home" aria-selected="true"><span class="ti">🏠</span><span class="tl">ホーム</span></button>
+      <button class="tab" data-scr="post" aria-selected="false"><span class="ti">✍️</span><span class="tl">投稿</span></button>
+      <button class="tab" data-scr="search" aria-selected="false"><span class="ti">🔍</span><span class="tl">さがす</span></button>
+      <button class="tab" data-scr="roulette" aria-selected="false"><span class="ti">🎯</span><span class="tl">ルーレット</span></button>
+      <button class="tab" data-scr="my" aria-selected="false"><span class="ti">🎖️</span><span class="tl">マイページ</span></button>
+    </nav>
+
+    <div class="sheet" id="sheet"><div class="inner" id="sheetInner"></div></div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="notes">
+    <span class="lbl">試作機で確認できること</span>
+    <ul>
+      <li>初期表示は3項目だけ。<b>項目パレット</b>で増やすと、その場でポイントの伸びが見えます。</li>
+      <li>入店ボタンを押すと、天気・気温・気圧・座標が自動で入ります（この試作機では模擬値）。</li>
+      <li>ルーレットは条件と重みを選んでから抽選し、結果に対する<b>事後評価</b>まで書けます。</li>
+      <li>投稿履歴から<b>訂正</b>すると、旧値と新値が履歴として残ります。上書きではありません。</li>
+      <li>マイページの2つのボタンで、誤情報の指摘を受けた場合／指摘が採用された場合の挙動を試せます。</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- storage ---------------- */
+var KEY="imakuite_proto_v1";
+function load(){try{var r=localStorage.getItem(KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+function makeId(){
+  var a="23456789ABCDEFGHJKLMNPQRSTUVWXYZ",s="";
+  for(var i=0;i<6;i++){s+=a.charAt(Math.floor(Math.random()*a.length));if(i===3)s+="-";}
+  return "IKI-"+s;
+}
+
+var VENUES=[
+  {id:1,n:"麺屋 こだま",g:"ラーメン",price:850,sc:4.3,cnt:12,dist:4,site:"kodama-noodle.example.jp"},
+  {id:2,n:"大衆食堂 みなみ",g:"定食",price:780,sc:4.1,cnt:31,dist:6,site:"minami-shokudo.example.jp"},
+  {id:3,n:"カレー研究所 ボンベイ通り",g:"カレー",price:1100,sc:4.6,cnt:8,dist:9,site:"bombay-lab.example.jp"},
+  {id:4,n:"焼鳥 とりいち",g:"居酒屋",price:2800,sc:3.9,cnt:19,dist:3,site:"toriichi.example.jp"},
+  {id:5,n:"パスタ食堂 ノルド",g:"洋食",price:1300,sc:4.4,cnt:5,dist:12,site:"nord-pasta.example.jp"},
+  {id:6,n:"天ぷら 一二三",g:"和食",price:1600,sc:4.0,cnt:23,dist:7,site:"hifumi-ten.example.jp"},
+  {id:7,n:"餃子酒場 チャオ",g:"中華",price:950,sc:3.7,cnt:14,dist:5,site:"ciao-gyoza.example.jp"},
+  {id:8,n:"カフェ 木漏れ日",g:"カフェ",price:700,sc:4.2,cnt:27,dist:8,site:"komorebi-cafe.example.jp"}
+];
+
+/* field definitions — matches the spec ledger */
+var FIELDS=[
+  {k:"photo",  n:"写真",            pt:15,type:"photo"},
+  {k:"price",  n:"価格",            pt:10,type:"price"},
+  {k:"note",   n:"食べた後の感想",   pt:10,type:"text"},
+  {k:"amount", n:"量",              pt:5, type:"pick",opts:["少なめ","ちょうど","多め","驚愕"]},
+  {k:"genre",  n:"料理のジャンル",   pt:5, type:"pick",opts:["ラーメン","定食","カレー","居酒屋","洋食","和食","中華","カフェ"]},
+  {k:"rec",    n:"おすすめ度",       pt:5, type:"pick",opts:["また行く","気が向いたら","行かない"]},
+  {k:"hunger", n:"おなかの減り具合", pt:3, type:"range",lo:"平気",hi:"限界"},
+  {k:"mood",   n:"その時の気分",     pt:3, type:"faces",opts:[["😪","疲れ"],["😌","穏やか"],["🙂","普通"],["😆","上機嫌"],["🔥","絶好調"]]},
+  {k:"party",  n:"何人で行ったか",   pt:3, type:"pick",opts:["1人","2人","3人","4人","5人以上"]}
+];
+
+var RANKS=[
+  {n:"見習い",         at:0,    unlock:"クイック投稿とルーレット（1日3回）が使えます。"},
+  {n:"巡回インスペクター",at:500, unlock:"ルーレット無制限、検索の絞り込み条件が増えます。"},
+  {n:"主任インスペクター",at:2000,unlock:"食歴分析（天気・気圧と満足度の相関）が開きます。"},
+  {n:"特別捜査官",      at:6000, unlock:"指摘の検証者資格、限定テーマ、投稿の一括書き出し。"},
+  {n:"主席監察官",      at:15000,unlock:"新機能の先行利用、月間ランキング、重み調整権。"}
+];
+
+var WEATHER=[["☀️ 晴れ",26],["⛅ くもり",23],["🌧️ 雨",19],["🌤️ 晴れときどき曇り",25]];
+
+/* ---------------- state ---------------- */
+var S=load()||{
+  uid:makeId(), pt:0, trust:50, visited:[], posts:[], ledger:[],
+  palette:{}, spins:0, draft:null
+};
+if(!S.palette)S.palette={};
+
+var D={}; /* current draft form */
+function newDraft(){
+  D={venue:null,dish:"",sat:0,stamped:false,weather:null,vals:{},rouletteId:null};
+}
+newDraft();
+
+var $=function(s){return document.querySelector(s);};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s));};
+
+/* ---------------- toast ---------------- */
+var tTimer;
+function toast(msg){
+  var t=$("#toast");t.textContent=msg;t.classList.add("show");
+  clearTimeout(tTimer);tTimer=setTimeout(function(){t.classList.remove("show");},2600);
+}
+function popPoint(n,anchor){
+  var el=document.createElement("span");
+  el.className="pop";el.textContent=(n>0?"+":"")+n;
+  el.style.color=n<0?"var(--crit)":"var(--good)";
+  el.style.bottom="72px";
+  $(".phone").appendChild(el);
+  setTimeout(function(){el.remove();},1000);
+}
+
+/* ---------------- points ---------------- */
+function addPoints(n,reason){
+  S.pt+=n;
+  S.ledger.unshift({n:n,r:reason,t:Date.now()});
+  if(S.ledger.length>40)S.ledger.pop();
+  save();renderMy();renderMini();popPoint(n);
+}
+function addTrust(n,reason){
+  S.trust=Math.max(0,Math.min(100,S.trust+n));
+  save();renderMy();
+}
+
+function draftPoints(){
+  var p=0;
+  if(D.dish.trim())p+=10;      /* 何を食べた */
+  if(D.sat)p+=5;               /* 満足度 */
+  if(D.venue)p+=10;            /* 投稿確定 */
+  if(D.stamped)p+=15;          /* 座標+入店+退店 */
+  if(D.rouletteId)p+=15;       /* ルーレット由来 */
+  FIELDS.forEach(function(f){
+    if(S.palette[f.k]&&hasVal(f.k))p+=f.pt;
+  });
+  if(D.venue&&S.visited.indexOf(D.venue)<0)p+=30; /* 初訪問 */
+  return p;
+}
+function hasVal(k){
+  var v=D.vals[k];
+  return v!==undefined&&v!==null&&v!=="";
+}
+
+/* ---------------- navigation ---------------- */
+function go(scr){
+  $$(".screen").forEach(function(s){s.hidden=true;});
+  var el=$("#sc-"+scr);
+  if(el)el.hidden=false;
+  $$(".tab").forEach(function(t){t.setAttribute("aria-selected",String(t.dataset.scr===scr));});
+  $("#scroll").scrollTop=0;
+  if(scr==="search")renderVenues();
+  if(scr==="my")renderMy();
+  if(scr==="roulette")renderWheel();
+  if(scr==="post")renderPost();
+  if(scr==="palette")renderPalette();
+}
+$("#tabs").addEventListener("click",function(e){
+  var b=e.target.closest(".tab");if(!b)return;go(b.dataset.scr);
+});
+
+/* ---------------- home ---------------- */
+function renderHome(){
+  var d=new Date();
+  $("#today").textContent=(d.getMonth()+1)+"月"+d.getDate()+"日";
+  tickLive();
+  if(S.posts.length){
+    var p=S.posts[S.posts.length-1];
+    $("#memoryText").innerHTML="直近の記録：<b>"+esc(p.venueName)+"</b> で <b>"+esc(p.dish||"（未記入）")+"</b>。満足度は "+p.sat+"。";
+  }
+}
+function tickLive(){
+  var h=new Date().getHours();
+  var base=h>=11&&h<=13?840:(h>=18&&h<=21?1120:260);
+  $("#liveCount").textContent=(base+Math.floor(Math.random()*60)).toLocaleString()+" 人";
+  $("#meshCount").textContent=(3+Math.floor(Math.random()*9))+" 人";
+}
+setInterval(function(){ if(!$("#sc-home").hidden) tickLive(); },10000);
+
+/* ---------------- post ---------------- */
+function renderPost(){
+  /* venue chips */
+  var near=VENUES.slice().sort(function(a,b){return a.dist-b.dist;}).slice(0,5);
+  var vp=$("#venuePick");vp.innerHTML="";
+  near.forEach(function(v){
+    var b=document.createElement("button");
+    b.className="ch";b.type="button";
+    b.setAttribute("aria-pressed",String(D.venue===v.id));
+    b.textContent=v.n+" · 徒歩"+v.dist+"分";
+    b.onclick=function(){D.venue=(D.venue===v.id?null:v.id);renderPost();updatePt();};
+    vp.appendChild(b);
+  });
+  $("#fDish").value=D.dish;
+  $$("#fSat .face").forEach(function(f){
+    f.setAttribute("aria-pressed",String(Number(f.dataset.v)===D.sat));
+  });
+  $("#stampState").textContent=D.stamped?("打刻済 "+D.weather[0]+" "+D.weather[1]+"℃"):"未打刻";
+  renderExtras();
+  updatePt();
+}
+
+$("#fDish").addEventListener("input",function(){D.dish=this.value;updatePt();});
+$("#fSat").addEventListener("click",function(e){
+  var b=e.target.closest(".face");if(!b)return;
+  D.sat=Number(b.dataset.v);renderPost();
+});
+
+function renderExtras(){
+  var box=$("#extraFields");box.innerHTML="";
+  FIELDS.forEach(function(f){
+    if(!S.palette[f.k])return;
+    var wrap=document.createElement("div");
+    var lab=document.createElement("span");
+    lab.className="lbl";lab.textContent=f.n+"　+"+f.pt+"pt";
+    wrap.appendChild(lab);
+
+    if(f.type==="pick"){
+      var row=document.createElement("div");row.className="chips";row.style.marginTop="7px";
+      f.opts.forEach(function(o){
+        var b=document.createElement("button");b.className="ch";b.type="button";
+        b.textContent=o;b.setAttribute("aria-pressed",String(D.vals[f.k]===o));
+        b.onclick=function(){D.vals[f.k]=(D.vals[f.k]===o?"":o);renderExtras();updatePt();};
+        row.appendChild(b);
+      });
+      wrap.appendChild(row);
+    }
+    else if(f.type==="faces"){
+      var g=document.createElement("div");g.className="faces";g.style.marginTop="7px";
+      f.opts.forEach(function(o){
+        var b=document.createElement("button");b.className="face";b.type="button";
+        b.innerHTML='<span class="e">'+o[0]+'</span><span class="n">'+o[1]+'</span>';
+        b.setAttribute("aria-pressed",String(D.vals[f.k]===o[1]));
+        b.onclick=function(){D.vals[f.k]=(D.vals[f.k]===o[1]?"":o[1]);renderExtras();updatePt();};
+        g.appendChild(b);
+      });
+      wrap.appendChild(g);
+    }
+    else if(f.type==="range"){
+      var r=document.createElement("input");r.type="range";r.min=1;r.max=5;
+      r.value=D.vals[f.k]||3;r.style.marginTop="7px";
+      var out=document.createElement("p");out.className="muted";
+      var names=["","平気","少し空いた","そこそこ","かなり","限界"];
+      out.textContent="腹ペコメーター："+names[r.value];
+      r.oninput=function(){D.vals[f.k]=this.value;out.textContent="腹ペコメーター："+names[this.value];updatePt();};
+      wrap.appendChild(r);wrap.appendChild(out);
+    }
+    else if(f.type==="price"){
+      var pr=document.createElement("div");pr.style.marginTop="7px";
+      var cur=Number(D.vals[f.k]||0);
+      var rr=document.createElement("input");rr.type="range";rr.min=0;rr.max=5000;rr.step=100;rr.value=cur;
+      var po=document.createElement("p");po.className="muted";
+      po.innerHTML="価格ダイヤル：<b style='font-family:var(--f-mono);font-size:15px;color:var(--ink)'>"+(cur?"¥"+cur.toLocaleString():"未設定")+"</b>";
+      rr.oninput=function(){
+        D.vals[f.k]=this.value;
+        po.innerHTML="価格ダイヤル：<b style='font-family:var(--f-mono);font-size:15px;color:var(--ink)'>¥"+Number(this.value).toLocaleString()+"</b>";
+        updatePt();
+      };
+      pr.appendChild(rr);pr.appendChild(po);wrap.appendChild(pr);
+    }
+    else if(f.type==="photo"){
+      var pb=document.createElement("button");
+      pb.className="btn ghost sm";pb.type="button";pb.style.marginTop="7px";
+      pb.textContent=D.vals[f.k]?"✅ 写真を1枚添付済み（タップで外す）":"📷 写真を撮る／選ぶ";
+      pb.onclick=function(){D.vals[f.k]=D.vals[f.k]?"":"photo.webp";renderExtras();updatePt();};
+      wrap.appendChild(pb);
+    }
+    else{
+      var ta=document.createElement("textarea");
+      ta.placeholder="話しかけるように書いてください";ta.style.marginTop="7px";
+      ta.value=D.vals[f.k]||"";
+      ta.oninput=function(){D.vals[f.k]=this.value;updatePt();};
+      wrap.appendChild(ta);
+    }
+    box.appendChild(wrap);
+  });
+}
+
+function updatePt(){
+  $("#ptPreview").textContent="+"+draftPoints();
+}
+
+function renderPalette(){
+  var box=$("#paletteList");box.innerHTML="";
+  FIELDS.forEach(function(f){
+    var b=document.createElement("button");
+    b.className="prow";b.type="button";
+    b.setAttribute("aria-pressed",String(!!S.palette[f.k]));
+    b.innerHTML='<span class="nm">'+f.n+'</span><span class="pv">+'+f.pt+'pt</span><span class="sw"></span>';
+    b.onclick=function(){
+      S.palette[f.k]=!S.palette[f.k];
+      if(!S.palette[f.k])delete D.vals[f.k];
+      save();renderPalette();
+    };
+    box.appendChild(b);
+  });
+}
+
+/* ---------------- actions ---------------- */
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-act]");if(!b)return;
+  var a=b.dataset.act;
+
+  if(a==="go-search")go("search");
+  else if(a==="go-roulette")go("roulette");
+  else if(a==="go-palette")go("palette");
+  else if(a==="go-post")go("post");
+
+  else if(a==="enter"){
+    var w=WEATHER[Math.floor(Math.random()*WEATHER.length)];
+    D.stamped=true;
+    D.weather=[w[0],w[1],(1006+Math.floor(Math.random()*16))];
+    toast("入店を記録：座標・時刻・"+w[0]+" "+w[1]+"℃・"+D.weather[2]+"hPa を封入しました");
+    go("post");
+  }
+
+  else if(a==="ai"){
+    var guesses=[["味噌ラーメン","ラーメン","多め",900],["日替わり定食","定食","ちょうど",800],["チキンカレー","カレー","ちょうど",1100],["カルボナーラ","洋食","ちょうど",1300]];
+    var g=guesses[Math.floor(Math.random()*guesses.length)];
+    D.dish=g[0];
+    D.vals.photo="photo.webp";
+    if(S.palette.genre)D.vals.genre=g[1];
+    if(S.palette.amount)D.vals.amount=g[2];
+    if(S.palette.price)D.vals.price=String(g[3]);
+    if(!S.palette.photo){S.palette.photo=true;}
+    save();renderPost();
+    toast("写真から下書きしました：「"+g[0]+"」。違っていれば直してください。");
+  }
+
+  else if(a==="submit")submitPost();
+
+  else if(a==="spin")spin();
+
+  else if(a==="sim-report"){
+    addPoints(-20,"誤情報が確定");addTrust(-5,"誤情報");
+    toast("誤情報として確定：−20pt、信頼スコア −5。30日問題がなければ自然回復します。");
+  }
+  else if(a==="sim-good"){
+    addPoints(20,"指摘が採用された（お礼）");addTrust(3,"指摘採用");
+    toast("指摘が採用されました：お礼 +20pt、信頼スコア +3。");
+  }
+
+  else if(a==="reset"){
+    try{localStorage.removeItem(KEY);}catch(err){}
+    S={uid:makeId(),pt:0,trust:50,visited:[],posts:[],ledger:[],palette:{},spins:0,draft:null};
+    newDraft();save();renderAll();go("home");toast("この端末のデータを消しました。");
+  }
+});
+
+function submitPost(){
+  if(!D.venue){toast("店を選んでください。周辺の候補から1件タップします。");return;}
+  if(!D.dish.trim()){toast("「何を食べた」だけは必要です。ここが記録の芯になります。");return;}
+  if(!D.sat){toast("満足度をひとつ選んでください。");return;}
+
+  var v=venueById(D.venue);
+  var first=S.visited.indexOf(D.venue)<0;
+  var pts=draftPoints();
+
+  var post={
+    id:Date.now(),venue:D.venue,venueName:v.n,dish:D.dish.trim(),sat:D.sat,
+    vals:JSON.parse(JSON.stringify(D.vals)),stamped:D.stamped,weather:D.weather,
+    first:first,pts:pts,rouletteId:D.rouletteId,t:Date.now(),edits:[]
+  };
+  S.posts.push(post);
+  if(first)S.visited.push(D.venue);
+
+  var why="投稿：" + v.n;
+  if(first)why+="（初訪問 +30）";
+  if(D.rouletteId)why+="（ルーレット由来 +15）";
+  addPoints(pts,why);
+
+  var msg="投稿しました。+"+pts+"pt";
+  if(first)msg+=" ／ 初めての店なので +30pt 上乗せ";
+  toast(msg);
+
+  var hadRoulette=D.rouletteId;
+  newDraft();
+  renderPost();renderHome();
+  go(hadRoulette?"my":"home");
+}
+
+function venueById(id){
+  for(var i=0;i<VENUES.length;i++)if(VENUES[i].id===id)return VENUES[i];
+  return null;
+}
+
+/* ---------------- search ---------------- */
+var fG="すべて",fS="評価順";
+function renderVenues(){
+  var gs=["すべて"].concat(VENUES.map(function(v){return v.g;}).filter(function(g,i,a){return a.indexOf(g)===i;}));
+  var gb=$("#filterGenre");gb.innerHTML="";
+  gs.forEach(function(g){
+    var b=document.createElement("button");b.className="ch";b.type="button";b.textContent=g;
+    b.setAttribute("aria-pressed",String(fG===g));
+    b.onclick=function(){fG=g;renderVenues();};
+    gb.appendChild(b);
+  });
+  var ss=["評価順","近い順","安い順","未訪問だけ"];
+  var sb=$("#filterSort");sb.innerHTML="";
+  ss.forEach(function(s){
+    var b=document.createElement("button");b.className="ch";b.type="button";b.textContent=s;
+    b.setAttribute("aria-pressed",String(fS===s));
+    b.onclick=function(){fS=s;renderVenues();};
+    sb.appendChild(b);
+  });
+
+  var list=VENUES.filter(function(v){return fG==="すべて"||v.g===fG;});
+  if(fS==="未訪問だけ")list=list.filter(function(v){return S.visited.indexOf(v.id)<0;});
+  list.sort(function(a,b){
+    if(fS==="近い順")return a.dist-b.dist;
+    if(fS==="安い順")return a.price-b.price;
+    return b.sc-a.sc;
+  });
+
+  $("#hitCount").textContent=list.length+" 件";
+  var box=$("#venueList");box.innerHTML="";
+  if(!list.length){
+    box.innerHTML='<p class="muted">条件に合う店がありません。絞り込みを緩めてください。</p>';return;
+  }
+  list.forEach(function(v){
+    var mine=myCount(v.id);
+    var b=document.createElement("button");b.className="vrow";b.type="button";
+    b.innerHTML=
+      '<span class="top"><span class="nm">'+esc(v.n)+'</span><span class="sc">★ '+v.sc.toFixed(1)+'</span></span>'+
+      '<span class="meta">'+
+        '<span class="tag">'+esc(v.g)+'</span>'+
+        '<span class="tag">¥'+v.price.toLocaleString()+'</span>'+
+        '<span class="tag">徒歩'+v.dist+'分</span>'+
+        '<span class="tag cnt">'+(v.cnt+mine)+'人が評価</span>'+
+        (S.visited.indexOf(v.id)<0?'<span class="tag new">未訪問 +30pt</span>':'')+
+      '</span>';
+    b.onclick=function(){showVenue(v.id);};
+    box.appendChild(b);
+  });
+}
+function myCount(id){
+  return S.posts.filter(function(p){return p.venue===id;}).length;
+}
+
+function showVenue(id){
+  var v=venueById(id);
+  var mine=S.posts.filter(function(p){return p.venue===id;});
+  var h='<div class="sh"><h2>'+esc(v.n)+'</h2><span class="sub">★ '+v.sc.toFixed(1)+'</span></div>';
+  h+='<div class="meta chips">'+
+     '<span class="tag">'+esc(v.g)+'</span>'+
+     '<span class="tag">¥'+v.price.toLocaleString()+'</span>'+
+     '<span class="tag">徒歩'+v.dist+'分</span>'+
+     '<span class="tag cnt">'+(v.cnt+mine.length)+'人が評価</span>'+
+     '<span class="tag off">店舗公式あり</span></div>';
+
+  h+='<div class="btnrow"><button class="btn ghost sm" data-site="'+esc(v.site)+'">🌐 公式サイトを開く</button>'+
+     '<button class="btn sm" data-pick="'+v.id+'">ここで投稿する</button></div>';
+
+  h+='<div class="card"><span class="lbl">店舗アカウントからの情報</span>'+
+     '<p style="font-size:13px;line-height:1.65;">本日の日替わりは '+esc(v.g)+' です。価格は税込 ¥'+v.price.toLocaleString()+' に改定しました。</p>'+
+     '<p class="muted">公式バッジ付き。評価点には算入されません。</p></div>';
+
+  h+='<div><span class="lbl">評価一覧（'+(v.cnt+mine.length)+'人）</span><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">';
+  if(mine.length){
+    mine.slice().reverse().forEach(function(p){
+      h+='<div class="hrow"><span class="t"><span class="n">あなた</span><span class="p">満足度 '+p.sat+'</span></span>'+
+         '<span class="d">'+esc(p.dish)+(p.vals.price?' ／ ¥'+Number(p.vals.price).toLocaleString():'')+'</span></div>';
+    });
+  }
+  h+='<div class="hrow"><span class="t"><span class="n">巡回インスペクター（信頼 82）</span><span class="p">満足度 4</span></span>'+
+     '<span class="d">昼の混雑は12時台がピーク。回転は速い。</span></div>'+
+     '<div class="hrow"><span class="t"><span class="n">見習い（信頼 44）</span><span class="p">満足度 5</span></span>'+
+     '<span class="d">量が多め。比較用に割り箸を一緒に撮りました。</span></div>';
+  h+='</div></div>';
+
+  $("#venueDetail").innerHTML=h;
+  $("#venueDetail").onclick=function(e){
+    var s=e.target.closest("[data-site]");
+    if(s){toast("外部ブラウザで "+s.dataset.site+" を開きます（試作機では遷移しません）");return;}
+    var p=e.target.closest("[data-pick]");
+    if(p){D.venue=Number(p.dataset.pick);go("post");toast("店を設定しました。");}
+  };
+  go("venue");
+}
+
+/* ---------------- roulette ---------------- */
+var rG="すべて",rW="未訪問を優先",spinning=false;
+function renderWheel(){
+  var gs=["すべて","ラーメン","定食","カレー","居酒屋","和食","中華"];
+  var gb=$("#rGenre");gb.innerHTML="";
+  gs.forEach(function(g){
+    var b=document.createElement("button");b.className="ch";b.type="button";b.textContent=g;
+    b.setAttribute("aria-pressed",String(rG===g));
+    b.onclick=function(){rG=g;renderWheel();};
+    gb.appendChild(b);
+  });
+  var ws=["未訪問を優先","高評価を優先","完全ランダム"];
+  var wb=$("#rWeight");wb.innerHTML="";
+  ws.forEach(function(w){
+    var b=document.createElement("button");b.className="ch";b.type="button";b.textContent=w;
+    b.setAttribute("aria-pressed",String(rW===w));
+    b.onclick=function(){rW=w;renderWheel();};
+    wb.appendChild(b);
+  });
+  var left=Math.max(0,3-S.spins);
+  $("#spinLeft").textContent=S.pt>=500?"無制限（ランク特典）":"残り"+left+"回";
+
+  var c=candidates();
+  var wh=$("#wheel");wh.innerHTML="";
+  c.forEach(function(v,i){
+    var d=document.createElement("div");d.className="wcell";d.dataset.i=i;
+    d.innerHTML='<span>'+esc(v.n)+'</span><span class="d">★'+v.sc.toFixed(1)+' · 徒歩'+v.dist+'分</span>';
+    wh.appendChild(d);
+  });
+}
+function candidates(){
+  var c=VENUES.filter(function(v){return rG==="すべて"||v.g===rG;});
+  return c.length?c:VENUES.slice();
+}
+function weightOf(v){
+  if(rW==="完全ランダム")return 1;
+  if(rW==="高評価を優先")return Math.pow(v.sc,3);
+  return S.visited.indexOf(v.id)<0?4:1;
+}
+
+function spin(){
+  if(spinning)return;
+  if(S.pt<500&&S.spins>=3){toast("今日のルーレットは3回まで。500ptで無制限になります。");return;}
+  var c=candidates();
+  var total=c.reduce(function(a,v){return a+weightOf(v);},0);
+  var r=Math.random()*total,win=0;
+  for(var i=0;i<c.length;i++){r-=weightOf(c[i]);if(r<=0){win=i;break;}}
+
+  S.spins++;save();
+  $("#rResult").innerHTML="";
+  var cells=$$("#wheel .wcell");
+  cells.forEach(function(x){x.className="wcell";});
+
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(reduce){finish(c,win,cells);return;}
+
+  spinning=true;
+  var steps=c.length*3+win, i2=0, delay=55;
+  (function step(){
+    cells.forEach(function(x){x.classList.remove("on");});
+    cells[i2%c.length].classList.add("on");
+    i2++;
+    if(i2<=steps){
+      if(i2>steps-c.length)delay+=26;
+      setTimeout(step,delay);
+    }else{
+      spinning=false;finish(c,win,cells);
+    }
+  })();
+}
+
+function finish(c,win,cells){
+  cells.forEach(function(x){x.className="wcell";});
+  cells[win].classList.add("win");
+  var v=c[win];
+  var rid="R"+Date.now();
+  var unvisited=S.visited.indexOf(v.id)<0;
+  $("#rResult").innerHTML=
+    '<div class="result"><span class="k">RESULT</span><span class="n">'+esc(v.n)+'</span>'+
+    '<span class="muted">'+esc(v.g)+' ／ ¥'+v.price.toLocaleString()+' ／ 徒歩'+v.dist+'分'+(unvisited?' ／ 未訪問':'')+'</span></div>'+
+    '<div class="btnrow" style="margin-top:10px;">'+
+    '<button class="btn ghost" data-respin="1">引き直す</button>'+
+    '<button class="btn" data-goto="'+v.id+'" data-rid="'+rid+'">ここに行く</button></div>'+
+    '<p class="muted" style="margin-top:8px;">「ここに行く」を押すと抽選IDが投稿に紐付き、+15pt。帰ってきたら事後評価で さらに +10pt。</p>';
+
+  $("#rResult").onclick=function(e){
+    if(e.target.closest("[data-respin]")){spin();return;}
+    var g=e.target.closest("[data-goto]");
+    if(g){
+      D.venue=Number(g.dataset.goto);
+      D.rouletteId=g.dataset.rid;
+      go("post");
+      toast("ルーレット由来の投稿として記録します（+15pt）。");
+    }
+  };
+}
+
+/* ---------------- mypage ---------------- */
+function rankOf(pt){
+  var r=RANKS[0];
+  for(var i=0;i<RANKS.length;i++)if(pt>=RANKS[i].at)r=RANKS[i];
+  return r;
+}
+function renderMini(){
+  $("#uid").textContent=S.uid;
+  $("#rankmini").textContent=rankOf(S.pt).n+" · "+S.pt.toLocaleString()+"pt";
+}
+function renderMy(){
+  renderMini();
+  $("#myUid").textContent=S.uid;
+  $("#myPt").textContent=S.pt.toLocaleString();
+  $("#myTrust").textContent=S.trust;
+
+  var r=rankOf(S.pt),idx=RANKS.indexOf(r),next=RANKS[idx+1];
+  $("#myRank").textContent=r.n;
+  $("#myUnlock").textContent=r.unlock;
+  if(next){
+    $("#myNext").textContent="次「"+next.n+"」まで "+(next.at-S.pt).toLocaleString()+"pt";
+    $("#myBar").style.width=Math.min(100,((S.pt-r.at)/(next.at-r.at))*100)+"%";
+  }else{
+    $("#myNext").textContent="最上位";
+    $("#myBar").style.width="100%";
+  }
+
+  $("#myTrustBar").style.width=S.trust+"%";
+  var t=S.trust,st;
+  if(t>=80)st="認定インスペクター · 推薦への重み ×1.5 · 検証者になれます";
+  else if(t>=60)st="良好 · 推薦への重み ×1.2";
+  else if(t>=40)st="標準 · 推薦への重み ×1.0";
+  else if(t>=20)st="要確認 · 重み ×0.5 · 投稿に「未検証」表示";
+  else st="保留 · 重み ×0.1 · 推薦には使われません";
+  $("#myTrustNote").textContent=st;
+
+  /* history */
+  var hb=$("#history");hb.innerHTML="";
+  if(!S.posts.length){
+    hb.innerHTML='<p class="muted">まだ投稿がありません。ホームの「入店を記録する」から始めてください。</p>';
+  }else{
+    S.posts.slice().reverse().forEach(function(p){
+      var d=new Date(p.t);
+      var det=[];
+      if(p.stamped&&p.weather)det.push(p.weather[0]+" "+p.weather[1]+"℃ "+p.weather[2]+"hPa");
+      if(p.vals.price)det.push("¥"+Number(p.vals.price).toLocaleString());
+      if(p.vals.amount)det.push("量:"+p.vals.amount);
+      if(p.vals.party)det.push(p.vals.party);
+      if(p.rouletteId)det.push("ルーレット由来");
+      var el=document.createElement("div");el.className="hrow";
+      el.innerHTML=
+        '<span class="t"><span class="n">'+esc(p.venueName)+'</span><span class="p">+'+p.pts+'pt</span></span>'+
+        '<span class="d">'+esc(p.dish)+' ／ 満足度 '+p.sat+(p.first?' ／ 初訪問':'')+'</span>'+
+        (det.length?'<span class="muted">'+esc(det.join(" · "))+'</span>':'')+
+        (p.edits.length?'<span class="muted" style="color:var(--warn)">訂正済み '+p.edits.length+'件：'+esc(p.edits.map(function(e){return e.f+" 「"+e.o+"」→「"+e.n+"」";}).join(" / "))+'</span>':'')+
+        '<span class="acts">'+
+          '<button class="btn ghost sm" data-edit="'+p.id+'">訂正する</button>'+
+          (p.rouletteId&&!p.rev?'<button class="btn sm" data-rev="'+p.id+'">ルーレットの事後評価</button>':'')+
+          (p.rev?'<span class="tag off">事後評価：'+esc(p.rev)+'</span>':'')+
+        '</span>';
+      hb.appendChild(el);
+    });
+  }
+
+  /* ledger */
+  var lb=$("#ledger");lb.innerHTML="";
+  if(!S.ledger.length){
+    lb.innerHTML='<div class="lrow"><span>まだ記録がありません</span></div>';
+  }else{
+    S.ledger.forEach(function(l){
+      var d=new Date(l.t);
+      var el=document.createElement("div");el.className="lrow";
+      el.innerHTML='<span>'+esc(l.r)+'</span><span class="amt'+(l.n<0?' minus':'')+'">'+(l.n>0?"+":"")+l.n+'</span>';
+      lb.appendChild(el);
+    });
+  }
+}
+
+$("#history").addEventListener("click",function(e){
+  var ed=e.target.closest("[data-edit]");
+  if(ed){editPost(Number(ed.dataset.edit));return;}
+  var rv=e.target.closest("[data-rev]");
+  if(rv){reviewRoulette(Number(rv.dataset.rev));return;}
+});
+
+function findPost(id){
+  for(var i=0;i<S.posts.length;i++)if(S.posts[i].id===id)return S.posts[i];
+  return null;
+}
+/* ---------------- sheet ---------------- */
+function openSheet(html,wire){
+  var s=$("#sheet"),inner=$("#sheetInner");
+  inner.innerHTML=html;
+  s.classList.add("show");
+  if(wire)wire(inner);
+  var f=inner.querySelector("input,textarea,button");
+  if(f)f.focus();
+}
+function closeSheet(){$("#sheet").classList.remove("show");}
+$("#sheet").addEventListener("click",function(e){
+  if(e.target===this)closeSheet();
+  if(e.target.closest("[data-close]"))closeSheet();
+});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSheet();});
+
+var REASONS=["打ち間違えた","後で確認したら違った","店の情報が変わった","写真の下書きが誤っていた"];
+
+function editPost(id){
+  var p=findPost(id);if(!p)return;
+  var h='<h3>投稿を訂正する</h3>'+
+    '<span class="lbl">項目：何を食べたか</span>'+
+    '<div class="oldval">'+esc(p.dish)+'</div>'+
+    '<input type="text" id="edVal" value="'+esc(p.dish)+'" autocomplete="off">'+
+    '<span class="lbl">訂正の理由</span><div class="chips" id="edReason"></div>'+
+    '<p class="muted">旧値・新値・理由・日時が履歴として残ります。上書きではありません。自己申告なので +3pt。</p>'+
+    '<div class="btnrow"><button class="btn ghost" data-close="1">やめる</button>'+
+    '<button class="btn" id="edSave">訂正を確定</button></div>';
+  openSheet(h,function(inner){
+    var reason=REASONS[0];
+    var rb=inner.querySelector("#edReason");
+    REASONS.forEach(function(x){
+      var b=document.createElement("button");b.className="ch";b.type="button";b.textContent=x;
+      b.setAttribute("aria-pressed",String(x===reason));
+      b.onclick=function(){
+        reason=x;
+        Array.prototype.forEach.call(rb.children,function(c){c.setAttribute("aria-pressed",String(c.textContent===x));});
+      };
+      rb.appendChild(b);
+    });
+    inner.querySelector("#edSave").onclick=function(){
+      var nv=inner.querySelector("#edVal").value.trim();
+      if(!nv){toast("新しい値を入れてください。");return;}
+      if(nv===p.dish){toast("変更はありませんでした。");closeSheet();return;}
+      p.edits.push({f:"何を食べたか",o:p.dish,n:nv,t:Date.now(),reason:reason});
+      p.dish=nv;
+      addPoints(3,"自分から誤りを訂正（"+reason+"）");
+      save();renderMy();closeSheet();
+      toast("訂正しました。旧値は履歴に残ります。+3pt。");
+    };
+  });
+}
+
+function reviewRoulette(id){
+  var p=findPost(id);if(!p)return;
+  var labels=[["😑","外れ"],["🙁","いまいち"],["🙂","まあ当たり"],["😋","当たり"],["🤩","大当たり"]];
+  var h='<h3>ルーレットの結果は当たりでしたか？</h3>'+
+    '<p class="muted">'+esc(p.venueName)+' ／ '+esc(p.dish)+'</p>'+
+    '<div class="faces" id="rvPick"></div>'+
+    '<p class="muted">この評価が溜まるほど、あなたにとっての「当たり」の傾向が抽選の重みに反映されます。+10pt。</p>'+
+    '<button class="btn ghost" data-close="1">あとで書く</button>';
+  openSheet(h,function(inner){
+    var g=inner.querySelector("#rvPick");
+    labels.forEach(function(o,i){
+      var b=document.createElement("button");b.className="face";b.type="button";
+      b.innerHTML='<span class="e">'+o[0]+'</span><span class="n">'+o[1]+'</span>';
+      b.onclick=function(){
+        p.rev=(i+1)+"/5";
+        addPoints(10,"ルーレットの事後評価");
+        save();renderMy();closeSheet();
+        toast("事後評価を記録しました。+10pt。");
+      };
+      g.appendChild(b);
+    });
+  });
+}
+
+/* ---------------- utils ---------------- */
+function esc(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+
+function renderAll(){renderMini();renderHome();renderPost();renderPalette();renderVenues();renderWheel();renderMy();}
+renderAll();
+go("home");
+
+})();
+</script>
