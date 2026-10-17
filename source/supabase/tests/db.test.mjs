@@ -21,6 +21,7 @@ await db.exec(read('0001_init.sql'));
 await db.exec(read('0002_seed_shops.sql'));
 await db.exec(read('0003_bug_report.sql'));
 await db.exec(read('0004_rank_gated_points.sql'));
+await db.exec(read('0005_public_shop_search.sql'));
 
 let failed = 0, passed = 0;
 const ok = (c, name, extra = '') => { c ? passed++ : failed++; console.log(`${c ? 'PASS' : 'FAIL'}  ${name}${c ? '' : '  ' + extra}`); };
@@ -180,6 +181,15 @@ ok(k3.includes('quality_4') && k3.includes('facility_info') && !k3.includes('noi
 await q('update public.inspector set rank = 4 where id = $1', [R.id]);
 const k4 = await detail(5);
 ok(k4.includes('noise_measured'), '主任: 騒音の測定が加点される', k4);
+
+// ===== 店舗検索の公開 =====
+const pub = await as(null, () => q('select * from public.search_shops(34.6667, 133.9188, 1500)'));
+ok(pub.rows.length >= 8, '未ログインでも店舗検索ができる');
+ok((await as(null, () => q('select * from public.search_shops(34.6667, 133.9188, 1500, null, null, 3)'))).rows.length === 3, '件数の上限(p_limit)が効く');
+ok((await as(null, () => q('select * from public.search_shops(34.6667, 133.9188, 1500, null, $1)', ['ラーメン']))).rows.length === 1, 'ジャンルで絞り込める');
+ok((await as(null, () => err(q('select * from public.shop')))) !== null, '店舗テーブルの直接参照は引き続き不可');
+await q("insert into public.shop (name, name_norm, lat, lng, genre, source, osm_id) values ('重複試験', '重複試験', 34.6, 133.9, 'その他', 'osm', 'node/1')");
+ok((await err(q("insert into public.shop (name, name_norm, lat, lng, genre, source, osm_id) values ('重複試験', '重複試験', 34.6, 133.9, 'その他', 'osm', 'node/1')"))) !== null, 'osm_id の重複は入らない');
 
 // ===== 不具合報告 =====
 const rep = (u, cat, msg) => as(u, () => q('select public.submit_bug_report($1, $2, $3, $4, $5) as r', [cat, msg, 'home', 'test-build', 'UA/1.0']));
