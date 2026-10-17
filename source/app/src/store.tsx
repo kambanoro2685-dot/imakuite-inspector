@@ -1,0 +1,155 @@
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEFAULT_PALETTE, RANKS } from './data';
+import { supabase } from './supabase';
+
+export type Edit = { f: string; o: string; n: string; t: number; reason: string };
+export type Post = {
+  id: number;
+  venue: number;
+  venueName: string;
+  dish: string;
+  sat: number;
+  vals: Record<string, string>;
+  weather: [string, number, number] | null;
+  enteredAt: number | null;
+  first: boolean;
+  pts: number;
+  rouletteId: string | null;
+  rev?: string;
+  t: number;
+  edits: Edit[];
+  /** サーバ同期の進捗（アカウントがある時だけ）。key=visit.id、dishId=dish.id（端末で採番）。step は sync.ts 参照 */
+  sync?: { key: string; dishId: string; step: number };
+};
+export type Ledger = { n: number; r: string; t: number };
+export type Profile = {
+  nickname: string;
+  nationality: string;
+  gender: string;
+  age: string;
+  allergies: string;
+  favorites: string[];
+};
+export type State = {
+  uid: string;
+  onboarded: boolean;
+  /** Supabase のアカウント。null は端末内だけで使うモード。passkey=false は匿名のまま（パスキー未設定） */
+  account: { publicId: string; passkey: boolean } | null;
+  profile: Profile;
+  pt: number;
+  trust: number;
+  visited: number[];
+  posts: Post[];
+  ledger: Ledger[];
+  palette: Record<string, boolean>;
+  spins: number;
+  spinDay: string;
+};
+
+const KEY = 'imakuite_v1';
+
+function makeId() {
+  const a = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let s = '';
+  for (let i = 0; i < 6; i++) {
+    s += a.charAt(Math.floor(Math.random() * a.length));
+    if (i === 3) s += '-';
+  }
+  return 'IKI-' + s;
+}
+export const today = () => new Date().toISOString().slice(0, 10);
+
+export function freshState(): State {
+  return {
+    uid: makeId(),
+    onboarded: false,
+    account: null,
+    profile: { nickname: '', nationality: '日本', gender: '', age: '', allergies: '', favorites: [] },
+    pt: 0,
+    trust: 50,
+    visited: [],
+    posts: [],
+    ledger: [],
+    palette: { ...DEFAULT_PALETTE },
+    spins: 0,
+    spinDay: today(),
+  };
+}
+
+export function rankOf(pt: number) {
+  let r = RANKS[0];
+  for (const x of RANKS) if (pt >= x.at) r = x;
+  return r;
+}
+
+type Ctx = {
+  S: State;
+  ready: boolean;
+  /** Supabase にログイン（匿名を含む）しているか */
+  signedIn: boolean;
+  update: (fn: (s: State) => State) => void;
+  addPoints: (n: number, reason: string) => void;
+  addTrust: (n: number) => void;
+  reset: () => void;
+  toast: string;
+  showToast: (m: string) => void;
+};
+const Store = createContext<Ctx>(null as unknown as Ctx);
+export const useStore = () => useContext(Store);
+
+export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const [S, setS] = useState<State>(freshState);
+  const [ready, setReady] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [toast, setToast] = useState('');
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    Promise.all([AsyncStorage.getItem(KEY).catch(() => null), supabase.auth.getSession().catch(() => null)])
+      .then(([raw, sess]) => {
+        if (raw) {
+          const loaded = JSON.parse(raw) as State;
+          const base = freshState();
+          const account = loaded.account ? { ...loaded.account, passkey: loaded.account.passkey ?? false } : null;
+          setS({ ...base, ...loaded, account, profile: { ...base.profile, ...loaded.profile } });
+        }
+        setSignedIn(!!sess?.data?.session);
+      })
+      .catch(() => {})
+      .finally(() => setReady(true));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (ready) AsyncStorage.setItem(KEY, JSON.stringify(S)).catch(() => {});
+  }, [S, ready]);
+
+  const update = useCallback((fn: (s: State) => State) => setS((s) => fn(s)), []);
+  const showToast = useCallback((m: string) => {
+    setToast(m);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setToast(''), 3200);
+  }, []);
+  const addPoints = useCallback((n: number, reason: string) => {
+    setS((s) => ({
+      ...s,
+      pt: Math.max(0, s.pt + n),
+      ledger: [{ n, r: reason, t: Date.now() }, ...s.ledger].slice(0, 60),
+    }));
+  }, []);
+  const addTrust = useCallback((n: number) => {
+    setS((s) => ({ ...s, trust: Math.max(0, Math.min(100, s.trust + n)) }));
+  }, []);
+  const reset = useCallback(() => {
+    setS(freshState());
+    supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+  }, []);
+
+  return (
+    <Store.Provider value={{ S, ready, signedIn, update, addPoints, addTrust, reset, toast, showToast }}>
+      {children}
+    </Store.Provider>
+  );
+}

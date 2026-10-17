@@ -1,0 +1,172 @@
+import React, { useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import { addPasskey, friendly, loginWithPasskey, passkeySupported, startAccount } from './account';
+import { GENRES } from './data';
+import { useStore } from './store';
+import { pushProfile } from './sync';
+import { C } from './theme';
+import { Btn, Card, Chip, Chips, Input, Lbl, Muted } from './ui';
+
+const GENDERS = ['回答しない', '女性', '男性', 'その他'];
+const AGES = ['〜19', '20代', '30代', '40代', '50代', '60代〜'];
+
+export default function Onboarding() {
+  const { S, update, addPoints, showToast } = useStore();
+  const [nick, setNick] = useState(S.profile.nickname);
+  const [nat, setNat] = useState(S.profile.nationality);
+  const [gender, setGender] = useState(S.profile.gender);
+  const [age, setAge] = useState(S.profile.age);
+  const [allergy, setAllergy] = useState(S.profile.allergies);
+  const [favs, setFavs] = useState<string[]>(S.profile.favorites);
+  const [busy, setBusy] = useState(false);
+  const canPasskey = passkeySupported();
+
+  const toggle = (g: string) => setFavs((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]));
+  const profile = () => ({ nickname: nick.trim(), nationality: nat.trim(), gender, age, allergies: allergy.trim(), favorites: favs });
+
+  const validate = () => {
+    if (!nick.trim()) { showToast('調査官名（ニックネーム）を入れてください。本名は不要です。'); return false; }
+    if (favs.length === 0) { showToast('好きな食べ物を1つ以上選んでください。'); return false; }
+    return true;
+  };
+
+  // ---- 端末内だけで使う（従来どおり）----
+  const startLocal = () => {
+    if (!validate()) return;
+    update((s) => ({ ...s, onboarded: true, account: null, profile: profile() }));
+    addPoints(20, '調査官登録（プロフィール入力）');
+    showToast('登録完了。+20pt。最初の任務は「入店を記録する」です。');
+  };
+
+  // ---- アカウント登録（匿名セッション → 公開ID発行 → パスキー設定）----
+  const register = async () => {
+    if (!validate() || busy) return;
+    setBusy(true);
+    try {
+      const { publicId } = await startAccount(nick.trim());
+      const p = profile();
+      update((s) => ({ ...s, onboarded: true, account: { publicId, passkey: false }, uid: publicId, pt: 0, trust: 50, profile: p }));
+      pushProfile(p).catch(() => {});
+      try {
+        await addPasskey();
+        update((s) => (s.account ? { ...s, account: { ...s.account, passkey: true } } : s));
+        showToast('登録完了。パスキーを設定しました。最初の任務は「入店を記録する」です。');
+      } catch (e) {
+        // 登録自体は完了している。パスキーだけ後からマイページで設定できる
+        showToast(`登録しました。ただしパスキーは未設定です（${friendly(e)}）マイページから設定できます。`);
+      }
+    } catch (e) {
+      showToast(friendly(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ---- 既存アカウントでログイン ----
+  const login = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const me = await loginWithPasskey();
+      update((s) => ({
+        ...s,
+        onboarded: true,
+        account: { publicId: me.public_id, passkey: true },
+        uid: me.public_id,
+        pt: me.ikp,
+        trust: Math.round(me.trust_score / 10),
+        profile: { ...s.profile, nickname: me.codename, favorites: s.profile.favorites.length ? s.profile.favorites : favs },
+      }));
+      showToast(`おかえりなさい、${me.codename} 調査官。`);
+    } catch (e) {
+      showToast(friendly(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 18, gap: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <View style={{ gap: 4 }}>
+        <Text style={{ fontSize: 26, fontWeight: '800', color: C.ink }}>
+          ImaKuite<Text style={{ color: C.crit }}>!</Text>Inspector<Text style={{ color: C.crit }}>!</Text>
+        </Text>
+        <Text style={{ color: C.amber, fontWeight: '700' }}>今日からあなたも、インスペクター。</Text>
+        <Muted>調査官登録書（第1号様式）。必要最小限だけ記入してください。氏名・住所・連絡先は集めません。</Muted>
+      </View>
+
+      {canPasskey ? (
+        <Card flat>
+          <Lbl>すでに登録済みの方</Lbl>
+          <Btn kind="ghost" label={busy ? '確認中…' : 'パスキーでログイン'} onPress={login} />
+        </Card>
+      ) : null}
+
+      <Card>
+        <Lbl>調査官ID</Lbl>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: C.indigo, letterSpacing: 1 }}>{S.uid}</Text>
+        <Muted>端末内だけで使う場合の仮ID。アカウントを登録すると、正式なIDが発行されます。</Muted>
+      </Card>
+
+      <View style={{ gap: 7 }}>
+        <Lbl>① 調査官名（本名でなくて構いません）</Lbl>
+        <Input value={nick} onChangeText={setNick} placeholder="例：ハラペコ二号" maxLength={16} />
+      </View>
+
+      <View style={{ gap: 7 }}>
+        <Lbl>② 好きな食べ物（複数選択）</Lbl>
+        <Chips>
+          {GENRES.map((g) => (
+            <Chip key={g} label={g} on={favs.includes(g)} onPress={() => toggle(g)} />
+          ))}
+        </Chips>
+        <Muted>ルーレットや「さがす」で、好みに合う店を優先します。</Muted>
+      </View>
+
+      <View style={{ gap: 7 }}>
+        <Lbl>③ 国籍</Lbl>
+        <Input value={nat} onChangeText={setNat} placeholder="例：日本" maxLength={20} />
+      </View>
+
+      <View style={{ gap: 7 }}>
+        <Lbl>④ 年代（任意）</Lbl>
+        <Chips>
+          {AGES.map((a) => (
+            <Chip key={a} label={a} on={age === a} onPress={() => setAge(age === a ? '' : a)} />
+          ))}
+        </Chips>
+      </View>
+
+      <View style={{ gap: 7 }}>
+        <Lbl>⑤ 性別（任意）</Lbl>
+        <Chips>
+          {GENDERS.map((g) => (
+            <Chip key={g} label={g} on={gender === g} onPress={() => setGender(gender === g ? '' : g)} />
+          ))}
+        </Chips>
+      </View>
+
+      <View style={{ gap: 7 }}>
+        <Lbl>⑥ アレルギー・苦手（任意）</Lbl>
+        <Input value={allergy} onChangeText={setAllergy} placeholder="例：そば、甲殻類" maxLength={80} />
+        <Muted>アレルギーはこの端末の中にだけ保存します（サーバには送りません）。身長・体重は、投稿のたびに任意で記録できる項目として別に用意する予定です。</Muted>
+      </View>
+
+      {canPasskey ? (
+        <>
+          <Btn label={busy ? '登録中…' : 'アカウントを登録する（パスキー・推奨）'} onPress={register} />
+          <Muted>
+            パスワードもメールも使いません。端末の指紋・顔認証・PINで本人確認します。パスキーは iCloud キーチェーンや
+            Google パスワードマネージャーで同期され、機種変更後も使えます。
+          </Muted>
+          <Btn kind="ghost" label="登録せず、この端末の中だけで使う" onPress={startLocal} />
+        </>
+      ) : (
+        <>
+          <Btn label="調査官として登録する" onPress={startLocal} />
+          <Muted>この環境ではパスキーを使えないため、端末内だけで保存します（アカウント機能は現在 Web 版のみ）。</Muted>
+        </>
+      )}
+    </ScrollView>
+  );
+}
