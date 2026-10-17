@@ -20,7 +20,7 @@ import { C, font, web } from './src/theme';
 const TABS: { k: Screen; icon: string; label: string }[] = [
   { k: 'home', icon: '🏠', label: 'ホーム' },
   { k: 'post', icon: '✍️', label: '投稿' },
-  { k: 'palette', icon: '🗂️', label: 'パレット' },
+  { k: 'palette', icon: '🗂️', label: '入力項目' },
   { k: 'search', icon: '🔍', label: 'さがす' },
   { k: 'roulette', icon: '🎯', label: 'ルーレット' },
   { k: 'my', icon: '🎖️', label: 'マイページ' },

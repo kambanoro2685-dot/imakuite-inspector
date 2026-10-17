@@ -185,7 +185,7 @@ export function Palette({ go }: { go: Go }) {
   };
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 30 }}>
-      <Head title="項目パレット" sub="選んだ分だけ加点" />
+      <Head title="入力項目" sub="選んだ分だけ加点" />
       <Muted>最初は3項目だけ。使いたい項目をONにすると投稿画面に現れます。いつでも戻せます。</Muted>
       {FIELDS.map((f) => {
         const on = !!S.palette[f.k];
