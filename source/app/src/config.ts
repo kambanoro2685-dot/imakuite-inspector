@@ -3,8 +3,8 @@
 export const SUPABASE_URL: string = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://ehtjtapkmwmsciuexdko.supabase.co';
 export const SUPABASE_KEY: string = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? 'sb_publishable_aWo4xCYUIH0sOJrE5DtSnQ_EukajdU5';
 
-// サンプル店舗(VENUES[id]) と DB の shop.id の対応（supabase/migrations/0002_seed_shops.sql と一致）
+// 旧版の試作店（数値ID 1〜8）と shop.id の対応。保存済みデータを移行するためだけに使う
 export const shopUuid = (venueId: number) => `00000000-0000-4000-8000-${String(venueId).padStart(12, '0')}`;
 
 // 画面下に表示して、古いキャッシュのページを見ていないか判別するための番号
-export const BUILD = '2026-10-17-k';
+export const BUILD = '2026-10-17-m';

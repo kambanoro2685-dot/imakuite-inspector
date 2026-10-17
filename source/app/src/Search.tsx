@@ -1,88 +1,160 @@
-import React, { useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useDraft } from './draft';
-import { GENRES, VENUES } from './data';
+import { GENRES } from './data';
+import { googleMapsUrl, googleRouteUrl, openUrl } from './maps';
+import MapView from './MapView';
 import { Go } from './nav';
 import { useStore } from './store';
 import { C, mono } from './theme';
-import { Btn, Card, Chip, Chips, Head, Lbl, Muted, s } from './ui';
+import { visitedPins, pinLabel } from './pins';
+import { Venue, useVenues, walkMin } from './venues';
+import { Btn, Card, Chip, Chips, Head, Input, Lbl, Muted, s } from './ui';
 
-const SORTS = ['おすすめ順', '評価順', '近い順', '安い順', '未訪問だけ'] as const;
+const SORTS = ['おすすめ順', '近い順', '未訪問だけ'] as const;
 type Sort = (typeof SORTS)[number];
 
 function Tag({ t, kind }: { t: string; kind?: 'new' | 'cnt' }) {
   const bg = kind === 'new' ? C.amberSoft : kind === 'cnt' ? C.goodSoft : C.surface2;
   const fg = kind === 'new' ? C.amber : kind === 'cnt' ? C.good : C.ink2;
   return (
-    <View style={{ backgroundColor: bg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+    <View style={{ backgroundColor: bg, borderRadius: 3, paddingHorizontal: 7, paddingVertical: 3 }}>
       <Text style={{ fontSize: 11.5, color: fg, fontWeight: '600' }}>{t}</Text>
     </View>
   );
 }
 
+export const Credit = () => <Muted>地図・店舗データ: © OpenStreetMap contributors。情報が古い場合があります（閉店・移転など）。</Muted>;
+
 export function Search({ go }: { go: Go }) {
   const { S } = useStore();
+  const { venues, center, loading, error, locating, useMyLocation, reload, byId } = useVenues();
   const [g, setG] = useState('すべて');
   const [sort, setSort] = useState<Sort>('おすすめ順');
-  const mine = (id: number) => S.posts.filter((p) => p.venue === id).length;
-  const fav = (v: (typeof VENUES)[number]) => (S.profile.favorites.includes(v.g) ? 1 : 0);
+  const [q, setQ] = useState('');
+  const [mode, setMode] = useState<'list' | 'map'>('list');
+  const [limit, setLimit] = useState(30);
 
-  let list = VENUES.filter((v) => g === 'すべて' || v.g === g);
-  if (sort === '未訪問だけ') list = list.filter((v) => !S.visited.includes(v.id));
-  list = [...list].sort((a, b) => {
-    if (sort === '近い順') return a.dist - b.dist;
-    if (sort === '安い順') return a.price - b.price;
-    if (sort === '評価順') return b.sc - a.sc;
-    return fav(b) - fav(a) || b.sc - a.sc;
-  });
+  const fav = (v: Venue) => (S.profile.favorites.includes(v.g) ? 1 : 0);
+  const mine = (id: string) => S.posts.filter((p) => p.venue === id).length;
+
+  const genres = useMemo(() => {
+    const have = new Set(venues.map((v) => v.g));
+    return ['すべて', ...GENRES.filter((x) => have.has(x)), ...(have.has('その他') ? ['その他'] : [])];
+  }, [venues]);
+
+  const list = useMemo(() => {
+    const nq = q.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+    let l = venues.filter((v) => (g === 'すべて' || v.g === g) && (!nq || v.n.normalize('NFKC').toLowerCase().includes(nq)));
+    if (sort === '未訪問だけ') l = l.filter((v) => !S.visited.includes(v.id));
+    return [...l].sort((a, b) => (sort === '近い順' || sort === '未訪問だけ' ? a.dist - b.dist : fav(b) - fav(a) || a.dist - b.dist));
+  }, [venues, g, q, sort, S.visited, S.profile.favorites]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shown = list.slice(0, limit);
+  const pins = useMemo(() => visitedPins(S.posts, byId), [S.posts, venues]); // eslint-disable-line react-hooks/exhaustive-deps
+  const base = center.source === 'gps' ? '現在地' : '岡山駅';
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 30 }}>
-      <Head title="店をさがす" sub={`${list.length} 件`} />
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+      <Head title="店をさがす" sub={loading ? '読み込み中…' : `${list.length} 件`} />
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Muted>基準: {base}（半径3km）</Muted>
+        <Btn small kind="ghost" label={locating ? '取得中…' : center.source === 'gps' ? '📍 現在地を更新' : '📍 現在地にする'} onPress={useMyLocation} />
+      </View>
+      {error ? <Text selectable style={{ color: C.crit, fontWeight: '700' }}>{error}</Text> : null}
+      {!loading && !error && venues.length === 0 ? (
+        <Card>
+          <Text style={{ color: C.ink, fontWeight: '800' }}>この周辺には、まだ店舗データがありません。</Text>
+          <Muted>対応エリアは、いまは岡山市北区・中心部（岡山駅周辺）です。</Muted>
+          <Btn small kind="ghost" label="岡山駅周辺にもどす" onPress={() => reload()} />
+        </Card>
+      ) : null}
+
       <Chips>
-        {['すべて', ...GENRES].map((x) => (
-          <Chip key={x} label={x} on={g === x} onPress={() => setG(x)} />
-        ))}
+        <Chip label="📋 店の一覧" on={mode === 'list'} onPress={() => setMode('list')} />
+        <Chip label={`🗺️ 調査マップ（${pins.length}）`} on={mode === 'map'} onPress={() => setMode('map')} />
       </Chips>
-      <Chips>
-        {SORTS.map((x) => (
-          <Chip key={x} label={x} on={sort === x} onPress={() => setSort(x)} />
-        ))}
-      </Chips>
-      {list.length === 0 ? <Muted>条件に合う店がありません。絞り込みを緩めてください。</Muted> : null}
-      {list.map((v) => (
-        <Pressable key={v.id} onPress={() => go('venue', v.id)} style={[s.card, { gap: 6 }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink, flexShrink: 1 }}>{v.n}</Text>
-            <Text style={{ fontFamily: mono, fontWeight: '800', color: C.amber }}>★ {v.sc.toFixed(1)}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            <Tag t={v.g} />
-            <Tag t={`徒歩${v.dist}分`} />
-            <Tag t={`${v.cnt + mine(v.id)}人が評価`} kind="cnt" />
-            {S.profile.favorites.includes(v.g) ? <Tag t="好みに合う" /> : null}
-            {!S.visited.includes(v.id) ? <Tag t="未訪問 +30pt" kind="new" /> : null}
-          </View>
-        </Pressable>
-      ))}
+
+      {mode === 'list' ? (
+        <>
+          <Input value={q} onChangeText={(t) => { setQ(t); setLimit(30); }} placeholder="店名で絞り込む（例：らーめん）" />
+          <Chips>
+            {genres.map((x) => (
+              <Chip key={x} label={x} on={g === x} onPress={() => { setG(x); setLimit(30); }} />
+            ))}
+          </Chips>
+          <Chips>
+            {SORTS.map((x) => (
+              <Chip key={x} label={x} on={sort === x} onPress={() => setSort(x)} />
+            ))}
+          </Chips>
+        </>
+      ) : null}
+
+      {mode === 'map' ? (
+        <View style={{ gap: 8 }}>
+          <MapView
+            height={380}
+            center={pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : center}
+            markers={[
+              ...(center.source === 'gps' ? [{ id: 'me', lat: center.lat, lng: center.lng, kind: 'me' as const, label: '現在地' }] : []),
+              ...pins.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, label: pinLabel(p) })),
+            ]}
+            onSelect={(id) => go('venue', id)}
+          />
+          {pins.length === 0 ? (
+            <Card>
+              <Text style={{ color: C.ink, fontWeight: '800' }}>📍 まだ何も調査していません</Text>
+              <Muted>調査報告を提出すると、その店がこの地図に追加されます。あなたが歩いた場所だけが、少しずつ地図に増えていきます。</Muted>
+              <Btn small label="調査を始める" onPress={() => go('post')} style={{ alignSelf: 'flex-start' }} />
+            </Card>
+          ) : (
+            <Muted>調査した {pins.length} か所。ピンを押すと店の詳細が開きます。</Muted>
+          )}
+          <Credit />
+        </View>
+      ) : (
+        <>
+          {shown.map((v) => (
+            <Pressable key={v.id} onPress={() => go('venue', v.id)} style={[s.card, { gap: 6 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink, flexShrink: 1 }}>{v.n}</Text>
+                <Text style={{ fontFamily: mono, fontSize: 12, color: C.ink3 }}>{base}から 徒歩{walkMin(v.dist)}分</Text>
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                <Tag t={v.g} />
+                <Tag t={v.reviews ? `${v.reviews + mine(v.id)}人が評価` : '調査待ち'} kind={v.reviews ? 'cnt' : undefined} />
+                {S.profile.favorites.includes(v.g) ? <Tag t="好みに合う" /> : null}
+                {!S.visited.includes(v.id) ? <Tag t="未訪問 +30pt" kind="new" /> : null}
+              </View>
+            </Pressable>
+          ))}
+          {list.length > shown.length ? <Btn kind="ghost" label={`さらに表示（残り${list.length - shown.length}件）`} onPress={() => setLimit(limit + 30)} /> : null}
+          <Credit />
+        </>
+      )}
     </ScrollView>
   );
 }
 
-const Redact = ({ n = 8 }: { n?: number }) => (
-  <Text style={{ color: C.ink3, letterSpacing: 1 }}>{'█'.repeat(n)}</Text>
-);
-
-export function VenueDetail({ id, go }: { id: number; go: Go }) {
-  const { S, showToast } = useStore();
+export function VenueDetail({ id, go }: { id: string; go: Go }) {
+  const { S } = useStore();
   const { setD } = useDraft();
-  const v = VENUES.find((x) => x.id === id);
-  if (!v) return null;
+  const { byId, center } = useVenues();
+  const post0 = S.posts.find((p) => p.venue === id && p.lat != null);
+  const v: Venue | undefined = byId(id) ?? (post0 ? { id, n: post0.venueName, g: post0.genre ?? 'その他', lat: post0.lat!, lng: post0.lng!, url: null, reviews: null, dist: 0 } : undefined);
+  if (!v) {
+    return (
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+        <Btn small kind="ghost" label="← 一覧にもどる" onPress={() => go('search')} style={{ alignSelf: 'flex-start' }} />
+        <Muted>店の情報が見つかりません。一覧から選び直してください。</Muted>
+      </ScrollView>
+    );
+  }
   const mine = S.posts.filter((p) => p.venue === id);
-  const open = S.visited.includes(id) || S.pt >= 300;
-  const avgOpen = S.pt >= 1200;
+  const base = center.source === 'gps' ? '現在地' : '岡山駅';
 
-  const openSite = () => Linking.openURL(v.site).catch(() => showToast('公式サイトを開けませんでした。'));
   const post = () => {
     setD((x) => ({ ...x, venue: id }));
     go('post');
@@ -91,42 +163,47 @@ export function VenueDetail({ id, go }: { id: number; go: Go }) {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 30 }}>
       <Btn small kind="ghost" label="← 一覧にもどる" onPress={() => go('search')} style={{ alignSelf: 'flex-start' }} />
-      <Head title={v.n} sub={`★ ${v.sc.toFixed(1)}`} />
+      <Head title={v.n} sub={v.g} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         <Tag t={v.g} />
-        <Tag t={`徒歩${v.dist}分`} />
-        <Tag t={`${v.cnt + mine.length}人が評価`} kind="cnt" />
+        <Tag t={`${base}から 徒歩${walkMin(v.dist)}分（約${v.dist.toLocaleString()}m）`} />
+        <Tag t={v.reviews ? `${v.reviews + mine.length}人が評価` : '調査待ち'} kind={v.reviews ? 'cnt' : undefined} />
+        {!S.visited.includes(v.id) ? <Tag t="未訪問 +30pt" kind="new" /> : null}
+      </View>
+
+      <MapView
+        height={240}
+        center={{ lat: v.lat, lng: v.lng }}
+        markers={[
+          { id: v.id, lat: v.lat, lng: v.lng, kind: 'win', label: v.n },
+        ]}
+      />
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Btn small kind="ghost" label="🗺️ Googleマップで開く" onPress={() => openUrl(googleMapsUrl(v))} style={{ flex: 1 }} />
+        <Btn small kind="ghost" label="🧭 徒歩ルート" onPress={() => openUrl(googleRouteUrl(v))} style={{ flex: 1 }} />
       </View>
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Btn small kind="ghost" label="🌐 公式サイトを開く" onPress={openSite} style={{ flex: 1 }} />
+        {v.url ? <Btn small kind="ghost" label="🌐 公式サイト" onPress={() => openUrl(v.url!)} style={{ flex: 1 }} /> : null}
         <Btn small label="ここで投稿する" onPress={post} style={{ flex: 1 }} />
       </View>
 
-      <Card>
-        <Lbl>平均価格（全員の集計）</Lbl>
-        {avgOpen ? <Text style={{ fontSize: 18, fontWeight: '800', color: C.ink }}>¥{v.price.toLocaleString()}</Text> : <Redact n={6} />}
-        {!avgOpen ? <Muted>二等インスペクター（1,200pt）で開きます。</Muted> : null}
-      </Card>
-
       <View style={{ gap: 8 }}>
-        <Lbl>{`評価一覧（${v.cnt + mine.length}人）`}</Lbl>
+        <Lbl>調査状況</Lbl>
+        <Card>
+          <Text style={{ color: C.ink, fontWeight: '800' }}>
+            {v.reviews ? `${v.reviews + mine.length}人の調査官が評価しています` : 'まだ調査待ちです（3件集まると評価が表示されます）'}
+          </Text>
+          <Muted>他の調査官の評価は、件数が集まってから表示します。階級が上がるほど、見られる範囲が広がります。</Muted>
+        </Card>
         {mine.map((p) => (
-          <View key={p.id} style={[s.card, { gap: 3 }]}>
-            <Text style={{ fontWeight: '800', color: C.ink }}>あなた　<Text style={{ color: C.amber }}>満足度 {p.sat}</Text></Text>
+          <Card key={p.id}>
+            <Text style={{ fontWeight: '800', color: C.ink }}>あなたの調査　<Text style={{ color: C.amber }}>満足度 {p.sat}</Text></Text>
             <Text style={{ color: C.ink2 }}>{p.dish}{p.vals.price ? ` ／ ¥${Number(p.vals.price).toLocaleString()}` : ''}</Text>
-          </View>
+          </Card>
         ))}
-        <View style={[s.card, { gap: 3 }]}>
-          <Text style={{ fontWeight: '800', color: C.ink }}>巡回インスペクター（信頼 82）　<Text style={{ color: C.amber }}>満足度 4</Text></Text>
-          {open ? <Text style={{ color: C.ink2 }}>昼の混雑は12時台がピーク。回転は速い。</Text> : <Redact n={18} />}
-        </View>
-        <View style={[s.card, { gap: 3 }]}>
-          <Text style={{ fontWeight: '800', color: C.ink }}>見習い（信頼 44）　<Text style={{ color: C.amber }}>満足度 5</Text></Text>
-          {open ? <Text style={{ color: C.ink2 }}>量が多め。比較用に割り箸を一緒に撮りました。</Text> : <Redact n={16} />}
-        </View>
-        {!open ? <Muted>この店に投稿するか、三等インスペクター（300pt）になると本文が読めます。自分で調べた範囲だけが見える仕組みです。</Muted> : null}
-        <Muted>※ 上の他人の評価はサンプル表示です。</Muted>
       </View>
+      <Credit />
     </ScrollView>
   );
 }

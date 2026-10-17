@@ -1,4 +1,3 @@
-import { shopUuid } from './config';
 import { Post, Profile } from './store';
 import { supabase } from './supabase';
 
@@ -46,7 +45,7 @@ export async function syncPost(post: Post, save: (s: Sync) => void): Promise<voi
   if (sy.step < 1) {
     const row: Record<string, unknown> = {
       id: visitId,
-      shop_id: shopUuid(post.venue),
+      shop_id: post.venue,
       entered_at: new Date(post.enteredAt ?? post.t).toISOString(),
     };
     if (post.weather && post.weather[2] > 0) {

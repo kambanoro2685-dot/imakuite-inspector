@@ -2,7 +2,8 @@ import React from 'react';
 import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useDraft } from './draft';
-import { FIELDS, RANKS, TIER_TITLES, VENUES } from './data';
+import { FIELDS, RANKS, TIER_TITLES } from './data';
+import { useVenues, walkMin } from './venues';
 import { Go } from './nav';
 import { uuid4 } from './supabase';
 import { Post, rankIndexOf, useStore } from './store';
@@ -15,7 +16,7 @@ const SAT: [string, string][] = [['😞', 'いまいち'], ['😐', 'ふつう']
 export function draftPoints(
   D: ReturnType<typeof useDraft>['D'],
   palette: Record<string, boolean>,
-  visited: number[],
+  visited: string[],
   rankIdx: number,
 ) {
   let p = 0;
@@ -36,8 +37,12 @@ export default function PostScreen({ go }: { go: Go }) {
   const rankIdx = rankIndexOf(S.pt);
   const active = FIELDS.filter((f) => f.rank <= rankIdx && S.palette[f.k]);
   const pts = draftPoints(D, S.palette, S.visited, rankIdx);
-  const near = [...VENUES].sort((a, b) => a.dist - b.dist).slice(0, 5);
-  const venueShown = D.venue && !near.some((v) => v.id === D.venue) ? [VENUES.find((v) => v.id === D.venue)!, ...near] : near;
+  const { venues, byId } = useVenues();
+  const [vq, setVq] = React.useState('');
+  const nq = vq.normalize('NFKC').toLowerCase().replace(/s+/g, '');
+  const near = (nq ? venues.filter((v) => v.n.normalize('NFKC').toLowerCase().includes(nq)) : venues).slice(0, 6);
+  const picked = D.venue ? byId(D.venue) : undefined;
+  const venueShown = picked && !near.some((v) => v.id === picked.id) ? [picked, ...near] : near;
 
   const setVal = (k: string, v: string) => setD((x) => ({ ...x, vals: { ...x.vals, [k]: v } }));
 
@@ -62,12 +67,13 @@ export default function PostScreen({ go }: { go: Go }) {
     if (!D.venue) return showToast('店を選んでください。周辺の候補から1件タップします。');
     if (!D.dish.trim()) return showToast('「何を食べた」だけは必要です。記録の芯になります。');
     if (!D.sat) return showToast('満足度をひとつ選んでください。');
-    const v = VENUES.find((x) => x.id === D.venue)!;
+    const v = byId(D.venue);
+    if (!v) return showToast('店の情報を読み込めませんでした。もう一度選んでください。');
     const first = !S.visited.includes(v.id);
     const vals: Record<string, string> = {};
     for (const f of active) if (D.vals[f.k]) vals[f.k] = D.vals[f.k];
     const post: Post = {
-      id: Date.now(), venue: v.id, venueName: v.n, dish: D.dish.trim(), sat: D.sat, vals,
+      id: Date.now(), venue: v.id, venueName: v.n, lat: v.lat, lng: v.lng, genre: v.g, dish: D.dish.trim(), sat: D.sat, vals,
       weather: D.stamp ? D.stamp.weather : null, enteredAt: D.stamp ? D.stamp.enteredAt : null,
       first, pts, rouletteId: D.rouletteId, t: Date.now(), edits: [],
       sync: S.account && signedIn ? { key: uuid4(), dishId: uuid4(), step: 0 } : undefined,
@@ -99,11 +105,12 @@ export default function PostScreen({ go }: { go: Go }) {
 
         <View style={{ gap: 7 }}>
           <Lbl>① 調査対象（どこで）</Lbl>
+          <Input value={vq} onChangeText={setVq} placeholder="店名で探す（近くの店が候補に出ます）" />
           <Chips>
             {venueShown.map((v) => (
               <Chip
                 key={v.id}
-                label={`${v.n} · 徒歩${v.dist}分`}
+                label={`${v.n} · 徒歩${walkMin(v.dist)}分`}
                 on={D.venue === v.id}
                 onPress={() => setD((x) => ({ ...x, venue: x.venue === v.id ? null : v.id }))}
               />

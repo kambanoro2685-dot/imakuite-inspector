@@ -1,29 +1,4 @@
-export type Venue = {
-  id: number;
-  n: string;
-  g: string;
-  price: number;
-  sc: number;
-  cnt: number;
-  dist: number;
-  site: string;
-  lat: number;
-  lon: number;
-};
-
-// 岡山市北区・中心部のサンプル店舗（本番は OpenStreetMap / Overpass から取り込む）
-export const VENUES: Venue[] = [
-  { id: 1, n: '麺屋 こだま', g: 'ラーメン', price: 850, sc: 4.3, cnt: 12, dist: 4, site: 'https://example.jp/kodama', lat: 34.6667, lon: 133.9188 },
-  { id: 2, n: '大衆食堂 みなみ', g: '定食', price: 780, sc: 4.1, cnt: 31, dist: 6, site: 'https://example.jp/minami', lat: 34.6651, lon: 133.9201 },
-  { id: 3, n: 'カレー研究所 ボンベイ通り', g: 'カレー', price: 1100, sc: 4.6, cnt: 8, dist: 9, site: 'https://example.jp/bombay', lat: 34.6689, lon: 133.9166 },
-  { id: 4, n: '焼鳥 とりいち', g: '居酒屋', price: 2800, sc: 3.9, cnt: 19, dist: 3, site: 'https://example.jp/toriichi', lat: 34.6659, lon: 133.9174 },
-  { id: 5, n: 'パスタ食堂 ノルド', g: '洋食', price: 1300, sc: 4.4, cnt: 5, dist: 12, site: 'https://example.jp/nord', lat: 34.6702, lon: 133.9215 },
-  { id: 6, n: '天ぷら 一二三', g: '和食', price: 1600, sc: 4.0, cnt: 23, dist: 7, site: 'https://example.jp/hifumi', lat: 34.6644, lon: 133.9152 },
-  { id: 7, n: '餃子酒場 チャオ', g: '中華', price: 950, sc: 3.7, cnt: 14, dist: 5, site: 'https://example.jp/ciao', lat: 34.6671, lon: 133.9143 },
-  { id: 8, n: 'カフェ 木漏れ日', g: 'カフェ', price: 700, sc: 4.2, cnt: 27, dist: 8, site: 'https://example.jp/komorebi', lat: 34.6695, lon: 133.9192 },
-];
-
-export const GENRES = ['ラーメン', '定食', 'カレー', '居酒屋', '洋食', '和食', '中華', 'カフェ'];
+export const GENRES = ['ラーメン', '麺類', '寿司', '和食', '中華', '焼肉・焼鳥', 'カレー', '洋食', '居酒屋', 'カフェ', 'ファストフード', 'スイーツ', '定食'];
 
 export type FieldDef = { k: string; n: string; pt: number; rank: number; hint?: string } & (
   | { type: 'photo' | 'price' | 'text' }
@@ -43,7 +18,7 @@ export const FIELDS: FieldDef[] = [
   { k: 'price', n: '価格', pt: 10, rank: 0, type: 'price' },
   { k: 'note', n: '食べた後の感想', pt: 10, rank: 0, type: 'text' },
   { k: 'amount', n: '量', pt: 5, rank: 0, type: 'pick', opts: ['少なめ', 'ちょうど', '多め', '驚愕'] },
-  { k: 'genre', n: '料理のジャンル', pt: 5, rank: 0, type: 'pick', opts: GENRES },
+  { k: 'genre', n: '料理のジャンル', pt: 5, rank: 0, type: 'pick', opts: [...GENRES, 'その他'] },
   { k: 'rec', n: 'おすすめ度', pt: 5, rank: 0, type: 'pick', opts: ['また行く', '気が向いたら', '行かない'] },
   { k: 'hunger', n: 'おなかの減り具合（入店前）', pt: 3, rank: 0, type: 'range', labels: ['', '平気', '少し空いた', 'そこそこ', 'かなり', '限界'] },
   { k: 'party', n: '何人で行ったか', pt: 3, rank: 0, type: 'pick', opts: ['1人', '2人', '3人', '4人', '5人以上'] },

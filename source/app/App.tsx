@@ -16,6 +16,7 @@ import { Search, VenueDetail } from './src/Search';
 import My from './src/My';
 import Help from './src/Help';
 import Report from './src/Report';
+import { VenueProvider } from './src/venues';
 import { rankIndexOf, rankOf, StoreProvider, useStore } from './src/store';
 import { RANKS } from './src/data';
 import { C, font, web } from './src/theme';
@@ -98,7 +99,7 @@ function Shell() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, signedIn]);
-  const [venueId, setVenueId] = useState(1);
+  const [venueId, setVenueId] = useState('');
   const [prev, setPrev] = useState<Screen>('home');
   const go: Go = (to, id) => {
     if (id !== undefined) setVenueId(id);
@@ -221,7 +222,9 @@ export default function App() {
   return (
     <StoreProvider>
       <DraftProvider>
-        <Shell />
+        <VenueProvider>
+          <Shell />
+        </VenueProvider>
       </DraftProvider>
     </StoreProvider>
   );

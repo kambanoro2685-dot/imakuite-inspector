@@ -1,13 +1,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_PALETTE, RANKS } from './data';
+import { shopUuid } from './config';
 import { supabase } from './supabase';
 
 export type Edit = { f: string; o: string; n: string; t: number; reason: string };
 export type Post = {
   id: number;
-  venue: number;
+  venue: string; // shop.id (uuid)
   venueName: string;
+  /** 調査した店の座標（調査マップに載せるため） */
+  lat?: number;
+  lng?: number;
+  genre?: string;
   dish: string;
   sat: number;
   vals: Record<string, string>;
@@ -39,7 +44,7 @@ export type State = {
   profile: Profile;
   pt: number;
   trust: number;
-  visited: number[];
+  visited: string[]; // 訪問済みの shop.id
   posts: Post[];
   ledger: Ledger[];
   palette: Record<string, boolean>;
@@ -118,7 +123,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const loaded = JSON.parse(raw) as State;
           const base = freshState();
           const account = loaded.account ? { ...loaded.account, passkey: loaded.account.passkey ?? false } : null;
-          setS({ ...base, ...loaded, account, profile: { ...base.profile, ...loaded.profile } });
+          // 旧版（架空の試作店 1〜8 の数値ID）で保存されたデータを、shop.id(uuid)に直す
+          const fix = (v: unknown) => (typeof v === 'number' ? shopUuid(v) : (v as string));
+          const migrated = {
+            ...loaded,
+            visited: (loaded.visited ?? []).map(fix),
+            posts: (loaded.posts ?? []).map((p) => ({ ...p, venue: fix(p.venue) })),
+          };
+          setS({ ...base, ...migrated, account, profile: { ...base.profile, ...loaded.profile } });
         }
         setSignedIn(!!sess?.data?.session);
       })

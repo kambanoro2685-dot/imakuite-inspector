@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState } from 'react';
 import { Stamp } from './weather';
 
 export type Draft = {
-  venue: number | null;
+  venue: string | null;
   dish: string;
   sat: number;
   vals: Record<string, string>;

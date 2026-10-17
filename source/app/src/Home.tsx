@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useDraft } from './draft';
-import { VENUES } from './data';
+import { useVenues, walkMin } from './venues';
 import { Go } from './nav';
 import { useStore } from './store';
 import { C, mono } from './theme';
@@ -27,7 +27,8 @@ export default function Home({ go }: { go: Go }) {
 
   const d = new Date();
   const last = S.posts[0];
-  const pick = VENUES.filter((v) => S.profile.favorites.includes(v.g) && !S.visited.includes(v.id))[0];
+  const { venues, center } = useVenues();
+  const pick = venues.find((v) => S.profile.favorites.includes(v.g) && !S.visited.includes(v.id));
 
   const enter = async () => {
     if (busy) return;
@@ -85,7 +86,7 @@ export default function Home({ go }: { go: Go }) {
         <Card>
           <Lbl>あなたの好みに合う未訪問の店</Lbl>
           <Text style={{ fontSize: 15, fontWeight: '800', color: C.ink }}>{pick.n}</Text>
-          <Muted>{pick.g} ／ ¥{pick.price.toLocaleString()} ／ 徒歩{pick.dist}分 ／ 初訪問で +30pt</Muted>
+          <Muted>{pick.g} ／ {center.source === 'gps' ? '現在地' : '岡山駅'}から徒歩{walkMin(pick.dist)}分 ／ 初訪問で +30pt</Muted>
           <Btn small kind="ghost" label="この店を見る" onPress={() => go('venue', pick.id)} style={{ alignSelf: 'flex-start' }} />
         </Card>
       ) : null}
