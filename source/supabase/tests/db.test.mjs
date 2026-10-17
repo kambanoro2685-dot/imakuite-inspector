@@ -19,6 +19,7 @@ await db.exec(`
 `);
 await db.exec(read('0001_init.sql'));
 await db.exec(read('0002_seed_shops.sql'));
+await db.exec(read('0003_bug_report.sql'));
 
 let failed = 0, passed = 0;
 const ok = (c, name, extra = '') => { c ? passed++ : failed++; console.log(`${c ? 'PASS' : 'FAIL'}  ${name}${c ? '' : '  ' + extra}`); };
@@ -150,6 +151,20 @@ const st2 = await as(A.id, async () => (await q('select public.shop_stats($1) as
 ok(st2.review_count >= 3 && st2.avg_satisfaction !== null, '3件以上で集計が開く', JSON.stringify(st2));
 const s2 = await as(A.id, () => q('select * from public.search_shops(34.6667, 133.9188, 300)'));
 ok(s2.rows.find((r) => r.id === SHOP)?.review_count >= 3, '検索結果にも件数が出る');
+
+// ===== 不具合報告 =====
+const rep = (u, cat, msg) => as(u, () => q('select public.submit_bug_report($1, $2, $3, $4, $5) as r', [cat, msg, 'home', 'test-build', 'UA/1.0']));
+ok((await rep(null, 'bug', '押しても反応しません')).rows[0].r.ok === true, '未ログインでも不具合を報告できる');
+ok((await rep(A.id, 'request', 'ダークモードが欲しい')).rows[0].r.ok === true, 'ログイン中も報告できる');
+const reps = await q('select inspector_id, category, screen, build from public.bug_report order by id');
+ok(reps.rows[0].inspector_id === null && reps.rows[1].inspector_id === A.id, 'ログイン中だけ調査官IDが紐づく');
+ok((await as(A.id, () => err(q('select * from public.bug_report')))) !== null, '報告は直接読めない（運営だけ）');
+ok((await as(null, () => err(q("insert into public.bug_report (category, message) values ('bug','x')")))) !== null, '直接INSERTできない');
+ok((await rep(A.id, 'xxx', 'a').then(() => null, (e) => e.message)).includes('invalid_category'), '不正な種別を拒否');
+ok((await rep(A.id, 'bug', '   ').then(() => null, (e) => e.message)).includes('invalid_message'), '空の本文を拒否');
+ok((await rep(A.id, 'bug', 'あ'.repeat(2001)).then(() => null, (e) => e.message)).includes('invalid_message'), '長すぎる本文を拒否');
+for (let i = 0; i < 9; i++) await rep(A.id, 'bug', 'n' + i);
+ok((await rep(A.id, 'bug', '11件目').then(() => null, (e) => e.message)).includes('rate_limited'), 'ログイン中は1日10件まで');
 
 // ===== アカウント削除 =====
 await as(B.id, () => q('select public.delete_account()'));
