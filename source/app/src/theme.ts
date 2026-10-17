@@ -26,7 +26,7 @@ export const C = {
   warn: '#98600A',
   crit: '#B3342B', // 朱のスタンプ
   // インデックス見出しの色
-  tabs: ['#E8B4B0', '#F0CE8E', '#F3B48C', '#BFD8A4', '#A9CBE6', '#CDB5DD'],
+  tabs: ['#E8B4B0', '#F0CE8E', '#F3B48C', '#BFD8A4', '#A9CBE6', '#CDB5DD', '#D6C9A6', '#E7B0C9'],
 };
 
 export const mono = '"IBM Plex Mono", "Courier New", Menlo, monospace';

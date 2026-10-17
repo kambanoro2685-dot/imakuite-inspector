@@ -13,6 +13,9 @@ Supabase ダッシュボード → **SQL Editor** で、次の順に実行しま
 
 1. `supabase/migrations/0001_init.sql` — テーブル・RLS（行レベルセキュリティ）・関数
 2. `supabase/migrations/0002_seed_shops.sql` — サンプル店舗 8 件（開発用）
+3. `supabase/migrations/0003_bug_report.sql` — 不具合報告（アプリの「不具合報告」タブの保存先）
+
+届いた報告は、**Table Editor → `bug_report`** で読めます（`status` を `triaged` / `closed` に変えて管理できます）。報告者の連絡先は集めていないため返信はできません。
 
 実行後、**Table Editor** に `inspector` `shop` `visit` などが並び、各テーブルに「RLS enabled」が付いていれば成功です。
 

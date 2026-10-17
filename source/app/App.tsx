@@ -4,7 +4,7 @@ import { fetchMe } from './src/account';
 import { supabase } from './src/supabase';
 import { SYNC_DONE } from './src/sync';
 import { useSyncer } from './src/useSyncer';
-import { ActivityIndicator, Platform, Pressable, SafeAreaView, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { DraftProvider } from './src/draft';
 import Home from './src/Home';
@@ -14,6 +14,8 @@ import PostScreen, { Palette } from './src/Post';
 import Roulette from './src/Roulette';
 import { Search, VenueDetail } from './src/Search';
 import My from './src/My';
+import Help from './src/Help';
+import Report from './src/Report';
 import { rankOf, StoreProvider, useStore } from './src/store';
 import { C, font, web } from './src/theme';
 
@@ -24,6 +26,8 @@ const TABS: { k: Screen; icon: string; label: string }[] = [
   { k: 'search', icon: '🔍', label: 'さがす' },
   { k: 'roulette', icon: '🎯', label: 'ルーレット' },
   { k: 'my', icon: '🎖️', label: 'マイページ' },
+  { k: 'help', icon: '📖', label: 'ヘルプ' },
+  { k: 'report', icon: '🐞', label: '不具合報告' },
 ];
 
 // Web: 手書き・明朝・タイプライター風のフォントを読み込み、data-font で切り替える
@@ -84,10 +88,13 @@ function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, signedIn]);
   const [venueId, setVenueId] = useState(1);
+  const [prev, setPrev] = useState<Screen>('home');
   const go: Go = (to, id) => {
     if (id !== undefined) setVenueId(id);
+    if (to !== 'report') setPrev(to); else if (scr !== 'report') setPrev(scr);
     setScr(to);
   };
+  const [tabsW, setTabsW] = useState(0);
   const { width } = useWindowDimensions();
   const wide = width >= 600;
   const tab = scr === 'venue' ? 'search' : scr;
@@ -112,7 +119,13 @@ function Shell() {
       >
         {/* インデックス見出し（色分け・上側） */}
         {S.onboarded ? (
-          <View style={{ flexDirection: 'row', gap: 3, paddingHorizontal: 4, alignItems: 'flex-end' }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            onLayout={(e) => setTabsW(e.nativeEvent.layout.width)}
+            style={{ flexGrow: 0 }}
+            contentContainerStyle={{ gap: 3, paddingHorizontal: 4, alignItems: 'flex-end' }}
+          >
             {TABS.map((t, i) => {
               const on = tab === t.k;
               return (
@@ -122,7 +135,7 @@ function Shell() {
                   accessibilityState={{ selected: on }}
                   onPress={() => go(t.k)}
                   style={{
-                    flex: 1, alignItems: 'center', gap: 1, paddingTop: on ? 7 : 4, paddingBottom: on ? 6 : 3, marginBottom: -1,
+                    width: Math.max(66, Math.floor((tabsW - 8 - 3 * (TABS.length - 1)) / TABS.length)), alignItems: 'center', gap: 1, paddingTop: on ? 7 : 4, paddingBottom: on ? 6 : 3, marginBottom: -1,
                     backgroundColor: C.tabs[i], borderTopLeftRadius: 9, borderTopRightRadius: 9,
                     borderWidth: 1.5, borderBottomWidth: 0, borderColor: 'rgba(60,45,20,.45)', opacity: on ? 1 : 0.82,
                   }}
@@ -132,7 +145,7 @@ function Shell() {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         ) : null}
 
         {/* 紙 */}
@@ -155,6 +168,8 @@ function Shell() {
                 {scr === 'venue' && <VenueDetail id={venueId} go={go} />}
                 {scr === 'roulette' && <Roulette go={go} />}
                 {scr === 'my' && <My />}
+                {scr === 'help' && <Help go={go} />}
+                {scr === 'report' && <Report go={go} from={prev} />}
               </View>
             </>
           ) : (
