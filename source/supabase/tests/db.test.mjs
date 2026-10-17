@@ -20,6 +20,7 @@ await db.exec(`
 await db.exec(read('0001_init.sql'));
 await db.exec(read('0002_seed_shops.sql'));
 await db.exec(read('0003_bug_report.sql'));
+await db.exec(read('0004_rank_gated_points.sql'));
 
 let failed = 0, passed = 0;
 const ok = (c, name, extra = '') => { c ? passed++ : failed++; console.log(`${c ? 'PASS' : 'FAIL'}  ${name}${c ? '' : '  ' + extra}`); };
@@ -95,10 +96,10 @@ ok(!(await as(A.id, () => ins(`insert into public.visit_score (visit_id, satisfa
 
 const sub = await as(A.id, async () => (await q('select public.submit_visit($1) as r', [V])).rows[0].r);
 const kinds = sub.breakdown.map((x) => x.kind).sort().join(',');
-ok(kinds === 'condition,dish_card,environment,first_visit_bonus,quick_report', '提出と加点内訳', kinds);
-ok(sub.total === 64 && sub.ikp === 64, '加点合計 64pt');
+ok(kinds === 'dish_card,first_visit_bonus,quick_report', '提出と加点内訳', kinds);
+ok(sub.total === 48 && sub.ikp === 48, '見習いの加点合計 48pt（詳細項目は階級が足りず加点なし）');
 const sub2 = await as(A.id, async () => (await q('select public.submit_visit($1) as r', [V])).rows[0].r);
-ok(sub2.already_submitted === true && (await me(A)).ikp === 64, '再提出で二重加点されない');
+ok(sub2.already_submitted === true && (await me(A)).ikp === 48, '再提出で二重加点されない');
 ok((await as(A.id, () => ins(`update public.visit set party_size = 3 where id = $1`, [V]))) === null
    && (await q('select party_size from public.visit where id = $1', [V])).rows[0].party_size === 2, '提出後の UPDATE は0行（変更されない）');
 ok((await as(A.id, () => ins(`insert into public.dish (id, visit_id, name) values ($1, $2, 'y')`, [randomUUID(), V]))) !== null, '提出後は皿を足せない');
@@ -126,7 +127,7 @@ await as(A.id, () => q(`insert into public.visit (id, shop_id, entered_at) value
 await as(A.id, () => q(`insert into public.visit_score (visit_id, satisfaction) values ($1, 60)`, [V2]));
 const sub3 = await as(A.id, async () => (await q('select public.submit_visit($1) as r', [V2])).rows[0].r);
 ok(!sub3.breakdown.some((x) => x.kind === 'first_visit_bonus'), '再訪には初訪問ボーナスが付かない');
-ok((await me(A)).ikp === 64 + 3 + 10, 'ポイント残高', String((await me(A)).ikp));
+ok((await me(A)).ikp === 48 + 3 + 10, 'ポイント残高', String((await me(A)).ikp));
 
 const ns = await as(A.id, async () => (await q(`select public.create_shop('テスト食堂', 34.67, 133.92, '定食') as r`)).rows[0].r);
 ok(ns.bonus.amount === 100, '新規店舗登録 +100');
@@ -151,6 +152,34 @@ const st2 = await as(A.id, async () => (await q('select public.shop_stats($1) as
 ok(st2.review_count >= 3 && st2.avg_satisfaction !== null, '3件以上で集計が開く', JSON.stringify(st2));
 const s2 = await as(A.id, () => q('select * from public.search_shops(34.6667, 133.9188, 300)'));
 ok(s2.rows.find((r) => r.id === SHOP)?.review_count >= 3, '検索結果にも件数が出る');
+
+// ===== 階級ごとの詳細項目と加点 =====
+const R = await newUser('階級試験');
+const detail = async (shopNo) => {
+  const v = randomUUID(), d = randomUUID();
+  const shop = '00000000-0000-4000-8000-00000000000' + shopNo;
+  await as(R.id, () => q('insert into public.visit (id, shop_id, entered_at, hunger_before, fullness_after) values ($1, $2, now(), 50, 75)', [v, shop]));
+  await as(R.id, () => q('insert into public.dish (id, visit_id, name, taste_sweet, taste_salty, taste_umami) values ($1, $2, $3, 1, 3, 5)', [d, v, '試験皿']));
+  await as(R.id, () => q(`insert into public.visit_score (visit_id, satisfaction, clean_entrance, clean_seating, clean_tableware, clean_restroom, clean_kitchen,
+      quietness, wait_min, service, serve_speed_min, aroma, texture, temperature, presentation, crowdedness, payment_methods, smoking, noise_db)
+      values ($1, 80, 0,1,0,1,0, 1, 5, 3, 5, 0,0,1,1, 2, 'cash,ic', 'no', 55)`, [v]));
+  const r = await as(R.id, async () => (await q('select public.submit_visit($1) as r', [v])).rows[0].r);
+  return r.breakdown.map((x) => x.kind).sort().join(',');
+};
+const k0 = await detail(1);
+ok(k0 === 'dish_card,first_visit_bonus,quick_report', '見習い: 詳細項目を書いても加点されない', k0);
+await q('update public.inspector set rank = 1 where id = $1', [R.id]);
+const k1 = await detail(2);
+ok(k1 === 'clean_5,condition,dish_card,environment,first_visit_bonus,quick_report', '三等: 清掃・環境・体調が加点される', k1);
+await q('update public.inspector set rank = 2 where id = $1', [R.id]);
+const k2 = await detail(3);
+ok(k2.includes('taste_analysis') && k2.includes('service_info') && !k2.includes('quality_4'), '二等: 味の分析・接客が加点され、品質はまだ', k2);
+await q('update public.inspector set rank = 3 where id = $1', [R.id]);
+const k3 = await detail(4);
+ok(k3.includes('quality_4') && k3.includes('facility_info') && !k3.includes('noise_measured'), '一等: 品質・設備が加点され、騒音はまだ', k3);
+await q('update public.inspector set rank = 4 where id = $1', [R.id]);
+const k4 = await detail(5);
+ok(k4.includes('noise_measured'), '主任: 騒音の測定が加点される', k4);
 
 // ===== 不具合報告 =====
 const rep = (u, cat, msg) => as(u, () => q('select public.submit_bug_report($1, $2, $3, $4, $5) as r', [cat, msg, 'home', 'test-build', 'UA/1.0']));
