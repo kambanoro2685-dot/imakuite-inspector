@@ -77,6 +77,12 @@ export function freshState(): State {
   };
 }
 
+export function rankIndexOf(pt: number) {
+  let r = 0;
+  RANKS.forEach((x, i) => { if (pt >= x.at) r = i; });
+  return r;
+}
+
 export function rankOf(pt: number) {
   let r = RANKS[0];
   for (const x of RANKS) if (pt >= x.at) r = x;

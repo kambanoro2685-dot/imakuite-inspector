@@ -11,6 +11,19 @@ const VOLUME: Record<string, string> = { 少なめ: 'less', ちょうど: 'just_
 // 調査票の「静かさ」: 0=静か 〜 4=賑やか
 const QUIET: Record<string, number> = { 静か: 0, 会話しやすい: 1, ふつう: 2, 騒がしい: 4 };
 
+const GOOD3: Record<string, number> = { 良い: 0, ふつう: 1, 気になる: 2 };
+const WAIT: Record<string, number> = { すぐ: 0, '〜10分': 10, '〜30分': 30, '30分超': 45 };
+const SPEED: Record<string, number> = { すぐ: 2, '〜5分': 5, '〜10分': 10, '10分超': 15 };
+const SERVICE: Record<string, number> = { 残念: 0, いまいち: 1, ふつう: 2, 良い: 3, とても良い: 4 };
+const CROWD: Record<string, number> = { 空いている: 0, ふつう: 1, やや混み: 2, 満席: 3, 行列: 4 };
+const SMOKE: Record<string, string> = { 禁煙: 'no', 喫煙可: 'yes', 分煙: 'separated' };
+const NOISE: Record<string, number> = { '〜40dB': 40, '〜55dB': 55, '〜70dB': 70, '70dB超': 80 };
+const PAY: Record<string, string> = { 現金: 'cash', 交通系IC: 'ic', クレジット: 'credit', QR: 'qr' };
+const SEATS: Record<string, string> = { カウンター: 'counter', テーブル: 'table', 座敷: 'tatami', 個室: 'private_room' };
+const TAGS: Record<string, string> = { 疲れた: 'tired', お祝い: 'celebration', 仕事: 'business', 一人: 'solo', デート: 'date', 急ぎ: 'rush' };
+const list = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
+const csv = (s: string | undefined, m: Record<string, string>) => list(s).map((x) => m[x]).filter(Boolean).join(',');
+
 const partyNum = (s?: string) => (s ? Math.min(20, parseInt(s, 10) || 0) || undefined : undefined);
 /** 同じ id の再送は「保存済み」として成功扱いにする（べき等） */
 const dupOk = (e: { code?: string } | null) => (e && e.code !== '23505' ? e : null);
@@ -44,6 +57,9 @@ export async function syncPost(post: Post, save: (s: Sync) => void): Promise<voi
     if (v.hunger) row.hunger_before = (Number(v.hunger) - 1) * 25;
     if (v.mood && MOOD[v.mood]) row.mood = MOOD[v.mood];
     if (v.note) row.comment = v.note;
+    if (v.full) row.fullness_after = (Number(v.full) - 1) * 25;
+    const tags = csv(v.tags, TAGS);
+    if (tags) row.mood_tags = tags;
     const e = dupOk((await supabase.from('visit').insert(row)).error);
     if (e) throw e;
     persist(1);
@@ -53,6 +69,10 @@ export async function syncPost(post: Post, save: (s: Sync) => void): Promise<voi
     if (v.price) row.price_yen = Number(v.price);
     if (v.amount && VOLUME[v.amount]) row.volume = VOLUME[v.amount];
     if (v.genre) row.genre = v.genre;
+    const taste: Record<string, string> = { ts_sweet: 'taste_sweet', ts_salty: 'taste_salty', ts_sour: 'taste_sour', ts_bitter: 'taste_bitter', ts_umami: 'taste_umami', ts_hot: 'taste_hot' };
+    for (const [k, col] of Object.entries(taste)) if (v[k] !== undefined && v[k] !== '') row[col] = Number(v[k]);
+    if (v.tax) row.tax_included = v.tax === '税込';
+    if (v.pickdish) row.is_pick = true;
     const e = dupOk((await supabase.from('dish').insert(row)).error);
     if (e) throw e;
     persist(2);
@@ -62,6 +82,28 @@ export async function syncPost(post: Post, save: (s: Sync) => void): Promise<voi
     if (v.rec === 'また行く') { row.would_return = true; row.would_recommend = true; }
     if (v.rec === '行かない') row.would_return = false;
     if (v.quiet && QUIET[v.quiet] !== undefined) row.quietness = QUIET[v.quiet];
+    const grade: Record<string, string> = {
+      cl_entrance: 'clean_entrance', cl_seating: 'clean_seating', cl_tableware: 'clean_tableware', cl_restroom: 'clean_restroom', cl_kitchen: 'clean_kitchen',
+      aroma: 'aroma', texture: 'texture', temperature: 'temperature', presentation: 'presentation',
+    };
+    for (const [k, col] of Object.entries(grade)) if (v[k] && GOOD3[v[k]] !== undefined) row[col] = GOOD3[v[k]];
+    if (v.wait && WAIT[v.wait] !== undefined) row.wait_min = WAIT[v.wait];
+    if (v.speed && SPEED[v.speed] !== undefined) row.serve_speed_min = SPEED[v.speed];
+    if (v.service && SERVICE[v.service] !== undefined) row.service = SERVICE[v.service];
+    if (v.crowd && CROWD[v.crowd] !== undefined) row.crowdedness = CROWD[v.crowd];
+    if (v.smoke && SMOKE[v.smoke]) row.smoking = SMOKE[v.smoke];
+    if (v.noise && NOISE[v.noise] !== undefined) row.noise_db = NOISE[v.noise];
+    const pay = csv(v.pay, PAY);
+    if (pay) row.payment_methods = pay;
+    const seats = csv(v.seats, SEATS);
+    if (seats) row.seat_types = seats;
+    const fac = list(v.facil);
+    if (fac.length) {
+      row.accessibility = fac.includes('バリアフリー');
+      row.kids_friendly = fac.includes('子連れ向き');
+      row.solo_friendly = fac.includes('一人向き');
+      row.multilingual_menu = fac.includes('多言語メニュー');
+    }
     const { error } = await supabase.from('visit_score').upsert(row);
     if (error) throw error;
     persist(3);

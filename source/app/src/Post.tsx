@@ -2,10 +2,10 @@ import React from 'react';
 import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useDraft } from './draft';
-import { FIELDS, HUNGER, VENUES } from './data';
+import { FIELDS, RANKS, TIER_TITLES, VENUES } from './data';
 import { Go } from './nav';
 import { uuid4 } from './supabase';
-import { Post, useStore } from './store';
+import { Post, rankIndexOf, useStore } from './store';
 import { useSyncer } from './useSyncer';
 import { C, mono } from './theme';
 import { Btn, Chip, Chips, Faces, Head, Input, Lbl, Muted, Steps, s } from './ui';
@@ -16,6 +16,7 @@ export function draftPoints(
   D: ReturnType<typeof useDraft>['D'],
   palette: Record<string, boolean>,
   visited: number[],
+  rankIdx: number,
 ) {
   let p = 0;
   if (D.dish.trim()) p += 10;
@@ -23,7 +24,7 @@ export function draftPoints(
   if (D.venue) p += 10;
   if (D.stamp) p += 15;
   if (D.rouletteId) p += 15;
-  for (const f of FIELDS) if (palette[f.k] && D.vals[f.k]) p += f.pt;
+  for (const f of FIELDS) if (f.rank <= rankIdx && palette[f.k] && D.vals[f.k]) p += f.pt;
   if (D.venue && !visited.includes(D.venue)) p += 30;
   return p;
 }
@@ -32,7 +33,9 @@ export default function PostScreen({ go }: { go: Go }) {
   const { S, signedIn, update, addPoints, showToast } = useStore();
   const { D, setD, clear } = useDraft();
   const syncer = useSyncer();
-  const pts = draftPoints(D, S.palette, S.visited);
+  const rankIdx = rankIndexOf(S.pt);
+  const active = FIELDS.filter((f) => f.rank <= rankIdx && S.palette[f.k]);
+  const pts = draftPoints(D, S.palette, S.visited, rankIdx);
   const near = [...VENUES].sort((a, b) => a.dist - b.dist).slice(0, 5);
   const venueShown = D.venue && !near.some((v) => v.id === D.venue) ? [VENUES.find((v) => v.id === D.venue)!, ...near] : near;
 
@@ -62,7 +65,7 @@ export default function PostScreen({ go }: { go: Go }) {
     const v = VENUES.find((x) => x.id === D.venue)!;
     const first = !S.visited.includes(v.id);
     const vals: Record<string, string> = {};
-    for (const f of FIELDS) if (S.palette[f.k] && D.vals[f.k]) vals[f.k] = D.vals[f.k];
+    for (const f of active) if (D.vals[f.k]) vals[f.k] = D.vals[f.k];
     const post: Post = {
       id: Date.now(), venue: v.id, venueName: v.n, dish: D.dish.trim(), sat: D.sat, vals,
       weather: D.stamp ? D.stamp.weather : null, enteredAt: D.stamp ? D.stamp.enteredAt : null,
@@ -122,9 +125,10 @@ export default function PostScreen({ go }: { go: Go }) {
           />
         </View>
 
-        {FIELDS.filter((f) => S.palette[f.k]).map((f) => (
+        {active.map((f) => (
           <View key={f.k} style={{ gap: 7 }}>
             <Lbl>{`${f.n}　+${f.pt}pt`}</Lbl>
+            {f.hint ? <Muted>{f.hint}</Muted> : null}
             {f.type === 'pick' ? (
               <Chips>
                 {f.opts.map((o) => (
@@ -137,10 +141,34 @@ export default function PostScreen({ go }: { go: Go }) {
               <View style={{ gap: 6 }}>
                 <Chips>
                   {[1, 2, 3, 4, 5].map((n) => (
-                    <Chip key={n} label={HUNGER[n]} on={D.vals[f.k] === String(n)} onPress={() => setVal(f.k, D.vals[f.k] === String(n) ? '' : String(n))} />
+                    <Chip key={n} label={f.labels[n]} on={D.vals[f.k] === String(n)} onPress={() => setVal(f.k, D.vals[f.k] === String(n) ? '' : String(n))} />
                   ))}
                 </Chips>
               </View>
+            ) : f.type === 'rating' ? (
+              <View style={{ gap: 4 }}>
+                <Chips>
+                  {[0, 1, 2, 3, 4, 5].map((n) => (
+                    <Chip key={n} label={String(n)} on={D.vals[f.k] === String(n)} onPress={() => setVal(f.k, D.vals[f.k] === String(n) ? '' : String(n))} />
+                  ))}
+                </Chips>
+                <Muted>0 = 感じない ／ 5 = とても強い</Muted>
+              </View>
+            ) : f.type === 'multi' ? (
+              <Chips>
+                {f.opts.map((o) => {
+                  const cur = (D.vals[f.k] ?? '').split(',').filter(Boolean);
+                  const on = cur.includes(o);
+                  return (
+                    <Chip
+                      key={o}
+                      label={o}
+                      on={on}
+                      onPress={() => setVal(f.k, (on ? cur.filter((x) => x !== o) : [...cur, o]).join(','))}
+                    />
+                  );
+                })}
+              </Chips>
             ) : f.type === 'price' ? (
               <View style={{ gap: 6 }}>
                 <Text style={{ fontFamily: mono, fontSize: 20, fontWeight: '800', color: C.ink }}>
@@ -178,29 +206,70 @@ export default function PostScreen({ go }: { go: Go }) {
 export function Palette({ go }: { go: Go }) {
   const { S, update } = useStore();
   const { setD } = useDraft();
+  const rankIdx = rankIndexOf(S.pt);
+  const total = FIELDS.length;
+  const open = FIELDS.filter((f) => f.rank <= rankIdx).length;
+
   const toggle = (k: string) => {
     const on = !S.palette[k];
     update((st) => ({ ...st, palette: { ...st.palette, [k]: on } }));
     if (!on) setD((x) => ({ ...x, vals: { ...x.vals, [k]: '' } }));
   };
+  const setTier = (tier: number, on: boolean) => {
+    const keys = FIELDS.filter((f) => f.rank === tier).map((f) => f.k);
+    update((st) => {
+      const next = { ...st.palette };
+      keys.forEach((k) => { next[k] = on; });
+      return { ...st, palette: next };
+    });
+    if (!on) setD((x) => ({ ...x, vals: Object.fromEntries(Object.entries(x.vals).filter(([k]) => !keys.includes(k))) }));
+  };
+
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 30 }}>
-      <Head title="入力項目" sub="選んだ分だけ加点" />
-      <Muted>最初は3項目だけ。使いたい項目をONにすると投稿画面に現れます。いつでも戻せます。</Muted>
-      {FIELDS.map((f) => {
-        const on = !!S.palette[f.k];
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 30 }}>
+      <Head title="入力項目" sub={`解放 ${open} / ${total}`} />
+      <Muted>
+        階級が上がると、より詳しい調査項目が使えるようになります。使いたい項目をONにすると投稿画面に現れ、入力した分だけポイントが増えます。
+      </Muted>
+
+      {TIER_TITLES.map((title, tier) => {
+        const fields = FIELDS.filter((f) => f.rank === tier);
+        const locked = tier > rankIdx;
+        const need = RANKS[tier].at - S.pt;
+        const allOn = fields.every((f) => S.palette[f.k]);
         return (
-          <Pressable
-            key={f.k}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: on }}
-            onPress={() => toggle(f.k)}
-            style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 10 }, on && { borderColor: C.indigo, backgroundColor: C.indigoSoft }]}
-          >
-            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: C.ink }}>{f.n}</Text>
-            <Text style={{ fontFamily: mono, color: C.good, fontWeight: '800' }}>+{f.pt}pt</Text>
-            <Text style={{ fontSize: 18 }}>{on ? '✅' : '⬜'}</Text>
-          </Pressable>
+          <View key={tier} style={{ gap: 8, opacity: locked ? 0.7 : 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Lbl>{`${locked ? '🔒 ' : ''}${RANKS[tier].n}から｜${title}`}</Lbl>
+              </View>
+              {locked ? (
+                <Text style={{ fontFamily: mono, fontSize: 11.5, color: C.crit, fontWeight: '800' }}>あと {need.toLocaleString()}pt</Text>
+              ) : (
+                <Btn small kind="ghost" label={allOn ? 'すべてOFF' : 'すべてON'} onPress={() => setTier(tier, !allOn)} />
+              )}
+            </View>
+            {fields.map((f) => {
+              const on = !locked && !!S.palette[f.k];
+              return (
+                <Pressable
+                  key={f.k}
+                  disabled={locked}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: on, disabled: locked }}
+                  onPress={() => toggle(f.k)}
+                  style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 14 }, on && { borderColor: C.indigo, backgroundColor: C.indigoSoft }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: C.ink }}>{f.n}</Text>
+                    {f.hint ? <Text style={{ fontSize: 11.5, color: C.ink3 }}>{f.hint}</Text> : null}
+                  </View>
+                  <Text style={{ fontFamily: mono, color: C.good, fontWeight: '800' }}>+{f.pt}pt</Text>
+                  <Text style={{ fontSize: 18 }}>{locked ? '🔒' : on ? '✅' : '⬜'}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
         );
       })}
       <Btn label="投稿画面にもどる" onPress={() => go('post')} />

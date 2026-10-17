@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { fetchMe } from './src/account';
 import { supabase } from './src/supabase';
@@ -16,7 +16,8 @@ import { Search, VenueDetail } from './src/Search';
 import My from './src/My';
 import Help from './src/Help';
 import Report from './src/Report';
-import { rankOf, StoreProvider, useStore } from './src/store';
+import { rankIndexOf, rankOf, StoreProvider, useStore } from './src/store';
+import { RANKS } from './src/data';
 import { C, font, web } from './src/theme';
 
 const TABS: { k: Screen; icon: string; label: string }[] = [
@@ -54,6 +55,16 @@ function Shell() {
   useBinderFonts();
   const { S, ready, toast, signedIn, update, showToast } = useStore();
   const syncer = useSyncer();
+  // 階級が上がったら知らせる（入力項目が増える）
+  const prevRank = useRef<number | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const idx = rankIndexOf(S.pt);
+    if (prevRank.current !== null && idx > prevRank.current) {
+      showToast(`🎖️ 「${RANKS[idx].n}」に昇格しました！入力項目が増えました。`);
+    }
+    prevRank.current = idx;
+  }, [ready, S.pt]); // eslint-disable-line react-hooks/exhaustive-deps
   const [scr, setScr] = useState<Screen>('home');
 
   // アプリが前面に戻ったときだけトークンを自動更新する（Supabase の推奨）
