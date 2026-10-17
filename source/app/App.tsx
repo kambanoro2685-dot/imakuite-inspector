@@ -4,7 +4,7 @@ import { fetchMe } from './src/account';
 import { supabase } from './src/supabase';
 import { SYNC_DONE } from './src/sync';
 import { useSyncer } from './src/useSyncer';
-import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, SafeAreaView, Text, useWindowDimensions, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { DraftProvider } from './src/draft';
 import Home from './src/Home';
@@ -95,6 +95,13 @@ function Shell() {
     setScr(to);
   };
   const [tabsW, setTabsW] = useState(0);
+  // 幅が足りないときは2段に折り返して、全部のタブを画面内に収める
+  const perRow = tabsW >= 480 ? TABS.length : Math.ceil(TABS.length / 2);
+  const tabRows: { t: (typeof TABS)[number]; i: number }[][] = [];
+  TABS.forEach((t, i) => {
+    const r = Math.floor(i / perRow);
+    (tabRows[r] = tabRows[r] ?? []).push({ t, i });
+  });
   const { width } = useWindowDimensions();
   const wide = width >= 600;
   const tab = scr === 'venue' ? 'search' : scr;
@@ -119,33 +126,31 @@ function Shell() {
       >
         {/* インデックス見出し（色分け・上側） */}
         {S.onboarded ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            onLayout={(e) => setTabsW(e.nativeEvent.layout.width)}
-            style={{ flexGrow: 0 }}
-            contentContainerStyle={{ gap: 3, paddingHorizontal: 4, alignItems: 'flex-end' }}
-          >
-            {TABS.map((t, i) => {
-              const on = tab === t.k;
-              return (
-                <Pressable
-                  key={t.k}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: on }}
-                  onPress={() => go(t.k)}
-                  style={{
-                    width: Math.max(66, Math.floor((tabsW - 8 - 3 * (TABS.length - 1)) / TABS.length)), alignItems: 'center', gap: 1, paddingTop: on ? 7 : 4, paddingBottom: on ? 6 : 3, marginBottom: -1,
-                    backgroundColor: C.tabs[i], borderTopLeftRadius: 9, borderTopRightRadius: 9,
-                    borderWidth: 1.5, borderBottomWidth: 0, borderColor: 'rgba(60,45,20,.45)', opacity: on ? 1 : 0.82,
-                  }}
-                >
-                  <Text style={{ fontSize: on ? 19 : 16 }}>{t.icon}</Text>
-                  <Text {...font('head')} style={{ fontSize: 10.5, color: C.ink, fontWeight: on ? '800' : '500' }}>{t.label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View onLayout={(e) => setTabsW(e.nativeEvent.layout.width)} style={{ gap: 2, paddingHorizontal: 4 }}>
+            {tabRows.map((row, ri) => (
+              <View key={ri} style={{ flexDirection: 'row', gap: 3, alignItems: 'flex-end' }}>
+                {row.map(({ t, i }) => {
+                  const on = tab === t.k;
+                  return (
+                    <Pressable
+                      key={t.k}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: on }}
+                      onPress={() => go(t.k)}
+                      style={{
+                        flex: 1, alignItems: 'center', gap: 1, paddingTop: on ? 6 : 3, paddingBottom: on ? 5 : 2, marginBottom: -1,
+                        backgroundColor: C.tabs[i], borderTopLeftRadius: 9, borderTopRightRadius: 9,
+                        borderWidth: 1.5, borderBottomWidth: 0, borderColor: 'rgba(60,45,20,.45)', opacity: on ? 1 : 0.82,
+                      }}
+                    >
+                      <Text style={{ fontSize: on ? 18 : 15 }}>{t.icon}</Text>
+                      <Text numberOfLines={1} {...font('head')} style={{ fontSize: perRow >= TABS.length ? 10 : 10.5, color: C.ink, fontWeight: on ? '800' : '500' }}>{t.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
         ) : null}
 
         {/* 紙 */}
