@@ -100,5 +100,5 @@ export default function Home({ go }: { go: Go }) {
   );
 }
 
-const statBox = { flex: 1, backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 12, gap: 2 } as const;
+const statBox = { flex: 1, backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 3, padding: 12, gap: 2 } as const;
 const statV = { fontSize: 20, fontWeight: '800', color: C.indigo } as const;

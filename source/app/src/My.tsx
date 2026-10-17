@@ -218,5 +218,5 @@ export default function My() {
   );
 }
 
-const box = { flex: 1, backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 12 } as const;
+const box = { flex: 1, backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 3, padding: 12 } as const;
 const big = { fontSize: 24, fontWeight: '800', color: C.indigo } as const;

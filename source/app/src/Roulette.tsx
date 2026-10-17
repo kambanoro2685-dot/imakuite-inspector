@@ -95,7 +95,7 @@ export default function Roulette({ go }: { go: Go }) {
             <View
               key={v.id}
               style={{
-                borderWidth: 1.5, borderRadius: 10, padding: 10,
+                borderWidth: 1.5, borderRadius: 3, padding: 10,
                 borderColor: isWin ? C.amber : lit ? C.indigo : C.line,
                 backgroundColor: isWin ? C.amberSoft : lit ? C.indigoSoft : C.surface,
               }}
@@ -108,7 +108,7 @@ export default function Roulette({ go }: { go: Go }) {
       </View>
 
       {win ? (
-        <View style={{ backgroundColor: C.amberSoft, borderRadius: 12, padding: 14, gap: 4 }}>
+        <View style={{ backgroundColor: C.amberSoft, borderRadius: 3, borderWidth: 2, borderColor: C.crit, borderStyle: "dashed", padding: 14, gap: 4 }}>
           <Text style={{ fontFamily: mono, fontSize: 11, color: C.amber, fontWeight: '800' }}>RESULT</Text>
           <Text style={{ fontSize: 20, fontWeight: '800', color: C.ink }}>{win.n}</Text>
           <Muted>{win.g} ／ ¥{win.price.toLocaleString()} ／ 徒歩{win.dist}分{S.visited.includes(win.id) ? '' : ' ／ 未訪問'}</Muted>

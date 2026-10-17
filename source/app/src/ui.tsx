@@ -1,38 +1,41 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
-import { C, mono } from './theme';
+import { C, font, web } from './theme';
 
 export function Btn({
   label, onPress, kind = 'solid', small, style,
 }: {
   label: string; onPress: () => void; kind?: 'solid' | 'ghost' | 'amber'; small?: boolean; style?: ViewStyle;
 }) {
-  const bg = kind === 'solid' ? C.indigo : kind === 'amber' ? C.amber : 'transparent';
-  const fg = kind === 'ghost' ? C.indigo : '#fff';
+  const bg = kind === 'solid' ? C.indigo : kind === 'amber' ? C.amber : C.surface;
+  const edge = kind === 'solid' ? '#1B3566' : kind === 'amber' ? '#8A5410' : C.indigo;
+  const fg = kind === 'ghost' ? C.indigo : '#FFFDF2';
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         s.btn,
-        { backgroundColor: bg, borderColor: kind === 'ghost' ? C.indigo : bg, paddingVertical: small ? 8 : 14, opacity: pressed ? 0.8 : 1 },
+        web({ boxShadow: pressed ? 'none' : `0 3px 0 ${edge}` }),
+        { backgroundColor: bg, borderColor: edge, paddingVertical: small ? 8 : 13, transform: [{ translateY: pressed ? 2 : 0 }] },
         style,
       ]}
     >
-      <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 13 : 15, textAlign: 'center' }}>{label}</Text>
+      <Text {...font('head')} style={{ color: fg, fontWeight: '800', fontSize: small ? 13 : 15, textAlign: 'center', letterSpacing: 0.5 }}>{label}</Text>
     </Pressable>
   );
 }
 
+/** インデックスシール風の選択肢。選ぶと朱の枠＋インク色が変わる */
 export function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
       onPress={onPress}
-      style={[s.chip, on && { backgroundColor: C.indigo, borderColor: C.indigo }]}
+      style={[s.chip, on && { backgroundColor: C.indigo, borderColor: '#1B3566', ...web({ boxShadow: '0 2px 0 #1B3566' }) }]}
     >
-      <Text style={{ color: on ? '#fff' : C.ink2, fontSize: 13, fontWeight: on ? '700' : '500' }}>{label}</Text>
+      <Text style={{ color: on ? '#FFFDF2' : C.ink2, fontSize: 13, fontWeight: on ? '800' : '500' }}>{label}</Text>
     </Pressable>
   );
 }
@@ -41,23 +44,37 @@ export function Chips({ children }: { children: React.ReactNode }) {
   return <View style={s.chips}>{children}</View>;
 }
 
+/** タイプ打ちのラベルシール */
 export function Lbl({ children }: { children: React.ReactNode }) {
-  return <Text style={s.lbl}>{children}</Text>;
+  return (
+    <View style={s.lblWrap}>
+      <Text {...font('mono')} style={s.lbl}>{children}</Text>
+    </View>
+  );
 }
 
 export function Muted({ children, style }: { children: React.ReactNode; style?: object }) {
   return <Text style={[s.muted, style]}>{children}</Text>;
 }
 
+/** 紙片。上にマスキングテープを貼った体裁。flat は台紙に直接書いた枠 */
 export function Card({ children, flat }: { children: React.ReactNode; flat?: boolean }) {
-  return <View style={[s.card, flat && { backgroundColor: C.surface2 }]}>{children}</View>;
+  return (
+    <View style={[s.card, web({ boxShadow: '1px 2px 4px rgba(60,45,20,.18)' }), flat && { backgroundColor: C.surface2, borderStyle: 'dashed' }]}>
+      {!flat ? <View style={s.tape} /> : null}
+      {children}
+    </View>
+  );
 }
 
 export function Head({ title, sub }: { title: string; sub?: string }) {
   return (
     <View style={s.head}>
-      <Text style={s.h2}>{title}</Text>
-      {sub ? <Text style={s.sub}>{sub}</Text> : null}
+      <View style={s.headRow}>
+        <Text {...font('head')} style={s.h2}>{title}</Text>
+        {sub ? <Text {...font('mono')} style={s.sub}>{sub}</Text> : null}
+      </View>
+      <View style={s.headLine} />
     </View>
   );
 }
@@ -83,10 +100,10 @@ export function Faces({
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
             onPress={() => onPick(on ? '' : n)}
-            style={[s.face, on && { borderColor: C.indigo, backgroundColor: C.indigoSoft }]}
+            style={[s.face, web({ boxShadow: '1px 2px 3px rgba(60,45,20,.18)' }), on && { borderColor: C.crit, backgroundColor: '#FFF3EC', transform: [{ rotate: '-2deg' }] }]}
           >
             <Text style={{ fontSize: 24 }}>{e}</Text>
-            <Text style={{ fontSize: 10.5, color: C.ink2 }}>{n}</Text>
+            <Text style={{ fontSize: 10.5, color: on ? C.crit : C.ink2, fontWeight: on ? '800' : '500' }}>{n}</Text>
           </Pressable>
         );
       })}
@@ -94,8 +111,15 @@ export function Faces({
   );
 }
 
+/** 記入欄: 下線を引いた書き込み欄 */
 export function Input(props: TextInputProps) {
-  return <TextInput placeholderTextColor={C.ink3} {...props} style={[s.input, props.multiline && { minHeight: 76, textAlignVertical: 'top' }, props.style]} />;
+  return (
+    <TextInput
+      placeholderTextColor={C.ink3}
+      {...props}
+      style={[s.input, props.multiline && { minHeight: 76, textAlignVertical: 'top' }, props.style]}
+    />
+  );
 }
 
 export function Steps({ value, min, max, step, onChange }: { value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
@@ -117,18 +141,22 @@ export function Sheet({ visible, onClose, children }: { visible: boolean; onClos
 }
 
 export const s = StyleSheet.create({
-  btn: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: { borderWidth: 1, borderColor: C.line, backgroundColor: C.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  lbl: { fontFamily: mono, fontSize: 11.5, letterSpacing: 0.8, color: C.ink3, fontWeight: '700' },
+  btn: { borderWidth: 1.5, borderRadius: 6, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { borderWidth: 1.5, borderColor: C.line, backgroundColor: C.surface, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 7 },
+  lblWrap: { alignSelf: 'flex-start', backgroundColor: C.amberSoft, borderWidth: 1, borderColor: '#DDC992', borderRadius: 2, paddingHorizontal: 7, paddingVertical: 2, transform: [{ rotate: '-0.6deg' }] },
+  lbl: { fontSize: 11.5, letterSpacing: 0.6, color: '#6B4A12', fontWeight: '700' },
   muted: { fontSize: 12.5, color: C.ink3, lineHeight: 19 },
-  card: { backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 14, gap: 8 },
-  head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
-  h2: { fontSize: 20, fontWeight: '800', color: C.ink, flexShrink: 1 },
-  sub: { fontSize: 12, color: C.ink3, fontFamily: mono },
-  meter: { height: 9, borderRadius: 5, backgroundColor: C.surface3, overflow: 'hidden' },
-  face: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
-  input: { borderWidth: 1, borderColor: C.line, backgroundColor: C.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: C.ink },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { backgroundColor: C.surface, padding: 18, gap: 12, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: '85%' },
+  card: { backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 3, padding: 14, paddingTop: 18, gap: 8 },
+  tape: { position: 'absolute', top: -8, left: 18, width: 54, height: 15, backgroundColor: 'rgba(232,205,110,0.62)', transform: [{ rotate: '-3deg' }], borderWidth: 0.5, borderColor: 'rgba(160,130,40,0.35)' },
+  head: { gap: 4 },
+  headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  headLine: { height: 5, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: C.ink },
+  h2: { fontSize: 21, color: C.ink, flexShrink: 1, letterSpacing: 1 },
+  sub: { fontSize: 11.5, color: C.ink3 },
+  meter: { height: 12, borderWidth: 1.5, borderColor: C.ink, backgroundColor: C.surface, overflow: 'hidden' },
+  face: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, borderRadius: 3, borderWidth: 1.5, borderColor: C.line, backgroundColor: '#FFFFFF' },
+  input: { borderWidth: 1, borderBottomWidth: 2, borderColor: C.line, borderBottomColor: C.ink2, backgroundColor: '#FFFEF8', borderRadius: 2, paddingHorizontal: 10, paddingVertical: 10, fontSize: 15, color: C.ink },
+  backdrop: { flex: 1, backgroundColor: 'rgba(30,20,10,0.5)' },
+  sheet: { backgroundColor: C.ground, padding: 18, gap: 12, borderTopWidth: 3, borderColor: C.ink, maxHeight: '85%' },
 });

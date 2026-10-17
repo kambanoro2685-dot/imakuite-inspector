@@ -151,7 +151,7 @@ export default function PostScreen({ go }: { go: Go }) {
               </View>
             ) : f.type === 'photo' ? (
               <View style={{ gap: 8 }}>
-                {D.vals[f.k] ? <Image source={{ uri: D.vals[f.k] }} style={{ width: '100%', height: 180, borderRadius: 10 }} /> : null}
+                {D.vals[f.k] ? <Image source={{ uri: D.vals[f.k] }} style={{ width: '100%', height: 180, borderRadius: 2, borderWidth: 6, borderColor: "#FFFFFF" }} /> : null}
                 <Btn small kind="ghost" label={D.vals[f.k] ? '写真を外す' : '📷 写真を撮る／選ぶ'} onPress={pickPhoto} style={{ alignSelf: 'flex-start' }} />
                 <Muted>※ 現段階では端末内にだけ保存されます（位置情報は付けません）。</Muted>
               </View>

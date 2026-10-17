@@ -1,20 +1,38 @@
+// 「昔のバインダー」: 紺の表紙・金属のリング・クリーム色の罫線紙・色分けインデックス・朱色のスタンプ。
 export const C = {
-  ground: '#F1F4F1',
-  surface: '#FBFCFA',
-  surface2: '#E7ECE6',
-  surface3: '#DCE3DA',
-  line: '#CBD4C9',
-  ink: '#17211D',
-  ink2: '#42514A',
-  ink3: '#6B7A72',
-  indigo: '#24467A',
-  indigoSoft: '#E1E8F3',
-  amber: '#B57A05',
-  amberSoft: '#F6ECD5',
-  good: '#2C7355',
-  goodSoft: '#DDEEE5',
-  warn: '#9A6600',
-  crit: '#A03328',
+  // 机（画面の外側）と表紙
+  desk: '#4B3A2E',
+  cover: '#25406B',
+  coverEdge: '#1A2E50',
+  // 紙
+  ground: '#FAF5E4',
+  surface: '#FFFCF2',
+  surface2: '#F1EAD2',
+  surface3: '#E2D8B8',
+  line: '#D9CFB2',
+  rule: '#CBD6E8', // 罫線（青）
+  margin: '#E7A9A3', // 余白線（赤）
+  // 文字（ブルーブラックのインク）
+  ink: '#232638',
+  ink2: '#474B63',
+  ink3: '#777A8F',
+  // 色
+  indigo: '#2A4A86',
+  indigoSoft: '#DEE6F4',
+  amber: '#B5701A',
+  amberSoft: '#F5E7C6',
+  good: '#35764A',
+  goodSoft: '#DCEBD8',
+  warn: '#98600A',
+  crit: '#B3342B', // 朱のスタンプ
+  // インデックス見出しの色
+  tabs: ['#E8B4B0', '#F0CE8E', '#BFD8A4', '#A9CBE6', '#CDB5DD'],
 };
 
-export const mono = 'Courier New, Menlo, monospace';
+export const mono = '"IBM Plex Mono", "Courier New", Menlo, monospace';
+
+/** Web 用: data-font 属性でフォントを切り替える（App.tsx で CSS を注入）。ネイティブでは無視される。 */
+export const font = (kind: 'head' | 'mono' | 'hand') => ({ dataSet: { font: kind } }) as any;
+
+/** Web 用の box-shadow / 背景（ネイティブでは何もしない） */
+export const web = (s: Record<string, unknown>) => s as any;
