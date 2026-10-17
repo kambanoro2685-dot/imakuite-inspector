@@ -22,6 +22,7 @@ function trustNote(t: number) {
 export default function My() {
   const { S, signedIn, update, addPoints, addTrust, reset, showToast } = useStore();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pkErr, setPkErr] = useState('');
   const r = rankOf(S.pt);
   const idx = RANKS.indexOf(r);
   const next = RANKS[idx + 1];
@@ -151,13 +152,15 @@ export default function My() {
           </Muted>
           {passkeySupported() ? (
             <Btn small kind={S.account.passkey ? 'ghost' : 'solid'} label={S.account.passkey ? 'この端末のパスキーを追加登録' : '⚠️ パスキーを設定する（未設定）'} onPress={async () => {
+              setPkErr('');
               try {
                 await addPasskey();
                 update((st) => (st.account ? { ...st, account: { ...st.account, passkey: true } } : st));
                 showToast('パスキーを設定しました。');
-              } catch (e) { showToast(friendly(e)); }
+              } catch (e: any) { setPkErr(`${friendly(e)}  [${e?.name ?? ''}${e?.code ? ' ' + e.code : ''}${e?.status ? ' ' + e.status : ''}]`); }
             }} />
           ) : null}
+          {pkErr ? <Text selectable style={{ color: C.crit, fontWeight: '700', lineHeight: 20 }}>{pkErr}</Text> : null}
           <Btn small kind="ghost" label="ログアウト" onPress={async () => { await logout(); reset(); }} />
           <Btn small kind="ghost" label="アカウントを削除" onPress={() => setConfirmDelete(true)} />
         </Card>

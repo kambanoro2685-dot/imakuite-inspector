@@ -50,6 +50,14 @@ export default function Home({ go }: { go: Go }) {
         今日のあなたの投稿が、未来のあなたの「食べたい」を支えます。
       </Text>
 
+      {S.account && !S.account.passkey ? (
+        <Card>
+          <Text style={{ color: C.crit, fontWeight: '800' }}>⚠️ パスキーが未設定です</Text>
+          <Muted>このままだと、ログアウトや端末の変更でアカウントに戻れなくなります。</Muted>
+          <Btn small label="マイページで設定する" onPress={() => go('my')} style={{ alignSelf: 'flex-start' }} />
+        </Card>
+      ) : null}
+
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={statBox}>
           <Text style={statV}>{live.toLocaleString()} 人</Text>
