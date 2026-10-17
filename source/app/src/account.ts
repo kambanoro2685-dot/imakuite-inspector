@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { supabase } from './supabase';
+import { supabase, uuid4 } from './supabase';
 
 export type ServerMe = {
   public_id: string;
@@ -20,7 +20,8 @@ export function friendly(e: unknown): string {
   if (name === 'NotAllowedError' || /ERROR_CEREMONY_ABORTED|cancel/i.test(msg)) return 'パスキーの操作がキャンセルされました。';
   if (/codename_taken/.test(msg)) return 'そのコードネームは使われています。別の名前にしてください。';
   if (/invalid_codename/.test(msg)) return 'コードネームは1〜16文字で、使えない文字があります。';
-  if (/anonymous.*(disabled|not allowed)|Anonymous sign-ins are disabled/i.test(msg)) return 'Supabase 側で「匿名サインイン」が有効になっていません。（設定手順を参照）';
+  if (/Anonymous user not allowed/i.test(msg)) return '匿名アカウントにはパスキーを付けられません。いったんログアウトして登録し直してください。';
+  if (/Signups not allowed|signup.*disabled/i.test(msg)) return 'Supabase 側で新規登録が無効になっています。（設定手順を参照）';
   if (/passkey|webauthn/i.test(msg) && /disabled|not enabled|not_enabled/i.test(msg)) return 'Supabase 側でパスキーが有効になっていません。（設定手順を参照）';
   if (/Failed to fetch|NetworkError|fetch failed/i.test(msg)) return 'サーバに接続できません。';
   if (/score_required/.test(msg)) return '満足度が未入力です。';
@@ -35,18 +36,34 @@ export async function fetchMe(): Promise<ServerMe | null> {
 }
 
 /**
- * 新規登録（1/2）: 匿名セッションを作り、調査官の行と公開IDを発行する。
- * 失敗しても匿名セッションは残すので、コードネームを変えて再試行できる。
+ * 新規登録（1/2）: 調査官のアカウントを作り、公開IDを発行する。
+ * Supabase は匿名ユーザーにパスキーを付けられないため、使い捨ての合成メール + ランダムなパスワードの
+ * 通常アカウントを作る。メールは実在せず（.invalid）、個人情報は入らない。ログインはパスキーだけで行う。
+ * ※ Supabase 側で「Confirm email」をオフにしておく必要がある。
+ * 失敗してもログイン状態は残すので、コードネームを変えて再試行できる。
  */
 export async function startAccount(codename: string): Promise<{ publicId: string }> {
   const cur = await supabase.auth.getSession();
-  if (!cur.data.session) {
-    const { error } = await supabase.auth.signInAnonymously();
+  let session = cur.data.session;
+  if (session?.user.is_anonymous) {
+    await supabase.auth.signOut({ scope: 'local' });
+    session = null;
+  }
+  if (!session) {
+    const email = `${uuid4().replace(/-/g, '')}@users.imakuite.invalid`;
+    const { data, error } = await supabase.auth.signUp({ email, password: randomPassword() });
     if (error) throw error;
+    if (!data.session) throw new Error('Supabase のメール確認(Confirm email)がオンのため登録できません。（設定手順を参照）');
   }
   const { data, error } = await supabase.rpc('register_inspector', { p_codename: codename });
   if (error) throw error;
   return { publicId: (data as any).public_id as string };
+}
+
+function randomPassword(): string {
+  const b = new Uint8Array(32);
+  crypto.getRandomValues(b);
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /** 新規登録（2/2）／パスキーの追加: ログイン中のアカウントにこの端末のパスキーを登録する */
