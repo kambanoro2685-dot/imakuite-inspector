@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { addPasskey, friendly, loginWithPasskey, passkeySupported, startAccount } from './account';
+import { BUILD } from './config';
 import { GENRES } from './data';
 import { useStore } from './store';
 import { pushProfile } from './sync';
@@ -19,10 +20,17 @@ export default function Onboarding() {
   const [allergy, setAllergy] = useState(S.profile.allergies);
   const [favs, setFavs] = useState<string[]>(S.profile.favorites);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
   const canPasskey = passkeySupported();
 
   const toggle = (g: string) => setFavs((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]));
   const profile = () => ({ nickname: nick.trim(), nationality: nat.trim(), gender, age, allergies: allergy.trim(), favorites: favs });
+
+  const detail = (e: unknown) => {
+    const x = e as any;
+    console.warn('[imakuite]', e);
+    return `${friendly(e)}  [${x?.name ?? ''}${x?.code ? ' ' + x.code : ''}${x?.status ? ' ' + x.status : ''}]`;
+  };
 
   const validate = () => {
     if (!nick.trim()) { showToast('調査官名（ニックネーム）を入れてください。本名は不要です。'); return false; }
@@ -42,6 +50,7 @@ export default function Onboarding() {
   const register = async () => {
     if (!validate() || busy) return;
     setBusy(true);
+    setErr('');
     try {
       const { publicId } = await startAccount(nick.trim());
       const p = profile();
@@ -53,10 +62,13 @@ export default function Onboarding() {
         showToast('登録完了。パスキーを設定しました。最初の任務は「入店を記録する」です。');
       } catch (e) {
         // 登録自体は完了している。パスキーだけ後からマイページで設定できる
-        showToast(`登録しました。ただしパスキーは未設定です（${friendly(e)}）マイページから設定できます。`);
+        setErr(`登録は完了しましたが、パスキーは未設定です。マイページから設定できます。
+原因: ${detail(e)}`);
+        showToast('登録しました。ただしパスキーは未設定です。');
       }
     } catch (e) {
-      showToast(friendly(e));
+      setErr(`登録できませんでした。
+原因: ${detail(e)}`);
     } finally {
       setBusy(false);
     }
@@ -66,6 +78,7 @@ export default function Onboarding() {
   const login = async () => {
     if (busy) return;
     setBusy(true);
+    setErr('');
     try {
       const me = await loginWithPasskey();
       update((s) => ({
@@ -79,7 +92,8 @@ export default function Onboarding() {
       }));
       showToast(`おかえりなさい、${me.codename} 調査官。`);
     } catch (e) {
-      showToast(friendly(e));
+      setErr(`ログインできませんでした。
+原因: ${detail(e)}`);
     } finally {
       setBusy(false);
     }
@@ -94,6 +108,12 @@ export default function Onboarding() {
         <Text style={{ color: C.amber, fontWeight: '700' }}>今日からあなたも、インスペクター。</Text>
         <Muted>調査官登録書（第1号様式）。必要最小限だけ記入してください。氏名・住所・連絡先は集めません。</Muted>
       </View>
+
+      {err ? (
+        <Card>
+          <Text selectable style={{ color: C.crit, fontWeight: '700', lineHeight: 20 }}>{err}</Text>
+        </Card>
+      ) : null}
 
       {canPasskey ? (
         <Card flat>
@@ -167,6 +187,7 @@ export default function Onboarding() {
           <Muted>この環境ではパスキーを使えないため、端末内だけで保存します（アカウント機能は現在 Web 版のみ）。</Muted>
         </>
       )}
+      <Text style={{ color: C.ink3, fontSize: 11, textAlign: 'center' }}>build {BUILD}</Text>
     </ScrollView>
   );
 }

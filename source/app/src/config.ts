@@ -5,3 +5,6 @@ export const SUPABASE_KEY: string = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? 'sb_
 
 // サンプル店舗(VENUES[id]) と DB の shop.id の対応（supabase/migrations/0002_seed_shops.sql と一致）
 export const shopUuid = (venueId: number) => `00000000-0000-4000-8000-${String(venueId).padStart(12, '0')}`;
+
+// 画面下に表示して、古いキャッシュのページを見ていないか判別するための番号
+export const BUILD = '2026-10-17-c';
