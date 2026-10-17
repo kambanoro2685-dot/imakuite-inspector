@@ -104,11 +104,36 @@ function Shell() {
       {/* 表紙 */}
       <View
         style={[
-          { flex: 1, width: '100%', maxWidth: 560, backgroundColor: C.cover, paddingLeft: 30, paddingRight: 8, paddingTop: 10, paddingBottom: 8,
+          { flex: 1, width: '100%', maxWidth: 560, backgroundColor: C.cover, paddingLeft: 30, paddingRight: 8, paddingTop: 8, paddingBottom: 10,
             borderRadius: wide ? 12 : 0, borderWidth: wide ? 2 : 0, borderColor: C.coverEdge },
           web({ boxShadow: '0 12px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.08)' }),
         ]}
       >
+        {/* インデックス見出し（色分け・上側） */}
+        {S.onboarded ? (
+          <View style={{ flexDirection: 'row', gap: 3, paddingHorizontal: 4, alignItems: 'flex-end' }}>
+            {TABS.map((t, i) => {
+              const on = tab === t.k;
+              return (
+                <Pressable
+                  key={t.k}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => go(t.k)}
+                  style={{
+                    flex: 1, alignItems: 'center', gap: 1, paddingTop: on ? 7 : 4, paddingBottom: on ? 6 : 3, marginBottom: -1,
+                    backgroundColor: C.tabs[i], borderTopLeftRadius: 9, borderTopRightRadius: 9,
+                    borderWidth: 1.5, borderBottomWidth: 0, borderColor: 'rgba(60,45,20,.45)', opacity: on ? 1 : 0.82,
+                  }}
+                >
+                  <Text style={{ fontSize: on ? 19 : 16 }}>{t.icon}</Text>
+                  <Text {...font('head')} style={{ fontSize: 10.5, color: C.ink, fontWeight: on ? '800' : '500' }}>{t.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
         {/* 紙 */}
         <SafeAreaView style={[{ flex: 1, backgroundColor: C.ground, borderRadius: 3, overflow: 'hidden', paddingLeft: 12 }, ruled]}>
           <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 0, bottom: 0, width: 1.5, backgroundColor: C.margin }} />
@@ -144,31 +169,6 @@ function Shell() {
             </View>
           ) : null}
         </SafeAreaView>
-
-        {/* インデックス見出し（色分け） */}
-        {S.onboarded ? (
-          <View style={{ flexDirection: 'row', gap: 3, paddingHorizontal: 4 }}>
-            {TABS.map((t, i) => {
-              const on = tab === t.k;
-              return (
-                <Pressable
-                  key={t.k}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: on }}
-                  onPress={() => go(t.k)}
-                  style={{
-                    flex: 1, alignItems: 'center', gap: 1, paddingTop: on ? 8 : 4, paddingBottom: on ? 7 : 4, marginTop: -1,
-                    backgroundColor: C.tabs[i], borderBottomLeftRadius: 9, borderBottomRightRadius: 9,
-                    borderWidth: 1.5, borderTopWidth: 0, borderColor: 'rgba(60,45,20,.45)', opacity: on ? 1 : 0.82,
-                  }}
-                >
-                  <Text style={{ fontSize: on ? 19 : 16 }}>{t.icon}</Text>
-                  <Text {...font('head')} style={{ fontSize: 10.5, color: C.ink, fontWeight: on ? '800' : '500' }}>{t.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : null}
 
         {/* 金属リング */}
         {[0.14, 0.5, 0.84].map((p) => (
