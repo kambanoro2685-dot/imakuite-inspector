@@ -20,6 +20,7 @@ import { C, font, web } from './src/theme';
 const TABS: { k: Screen; icon: string; label: string }[] = [
   { k: 'home', icon: '🏠', label: 'ホーム' },
   { k: 'post', icon: '✍️', label: '投稿' },
+  { k: 'palette', icon: '🗂️', label: 'パレット' },
   { k: 'search', icon: '🔍', label: 'さがす' },
   { k: 'roulette', icon: '🎯', label: 'ルーレット' },
   { k: 'my', icon: '🎖️', label: 'マイページ' },
@@ -89,7 +90,7 @@ function Shell() {
   };
   const { width } = useWindowDimensions();
   const wide = width >= 600;
-  const tab = scr === 'palette' ? 'post' : scr === 'venue' ? 'search' : scr;
+  const tab = scr === 'venue' ? 'search' : scr;
 
   if (!ready) {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.indigo} /></View>;
