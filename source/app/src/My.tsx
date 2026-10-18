@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Image, ScrollView, Text, View } from 'react-native';
 import { addPasskey, deleteAccount, fetchMe, friendly, logout, passkeySupported } from './account';
 import { RANKS } from './data';
 import { SYNC_DONE } from './sync';
@@ -116,6 +116,13 @@ export default function My() {
                 <Text style={{ fontFamily: mono, color: C.good, fontWeight: '800' }}>+{p.pts}pt</Text>
               </View>
               <Text style={{ color: C.ink2 }}>{p.dish} ／ 満足度 {p.sat}{p.first ? ' ／ 初訪問' : ''}</Text>
+              {p.photos?.length ? (
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {p.photos.map((ph) => (
+                    <Image key={ph.id} source={{ uri: ph.url }} style={{ width: 64, height: 64, borderRadius: 2, borderWidth: 3, borderColor: '#FFFFFF' }} />
+                  ))}
+                </View>
+              ) : null}
               {det.length ? <Muted>{det.join(' · ')}</Muted> : null}
               {p.edits.length ? (
                 <Muted style={{ color: C.warn }}>

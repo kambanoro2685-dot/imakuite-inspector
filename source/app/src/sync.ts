@@ -35,8 +35,8 @@ const dupOk = (e: { code?: string } | null) => (e && e.code !== '23505' ? e : nu
  */
 export async function syncPost(post: Post, save: (s: Sync) => void): Promise<void> {
   let sy: Sync = post.sync ?? { key: '', dishId: '', step: 0 };
-  const persist = (step: number) => {
-    sy = { ...sy, step };
+  const persist = (step: number, extra: Partial<Sync> = {}) => {
+    sy = { ...sy, step, ...extra };
     save(sy);
   };
   const v = post.vals;
@@ -75,6 +75,15 @@ export async function syncPost(post: Post, save: (s: Sync) => void): Promise<voi
     const e = dupOk((await supabase.from('dish').insert(row)).error);
     if (e) throw e;
     persist(2);
+  }
+  // 写真（端末でアップロード済みのURLを記録する。id は端末で採番済みなので再送しても重複しない）
+  if (sy.step >= 2 && !sy.photosDone) {
+    let i = 0;
+    for (const ph of post.photos ?? []) {
+      const e = dupOk((await supabase.from('photo').insert({ id: ph.id, visit_id: visitId, storage_url: ph.url, sort_order: i++ })).error);
+      if (e) throw e;
+    }
+    persist(sy.step, { photosDone: true });
   }
   if (sy.step < 3) {
     const row: Record<string, unknown> = { visit_id: visitId, satisfaction: post.sat * 20 };

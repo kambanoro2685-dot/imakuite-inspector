@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useDraft } from './draft';
 import { GENRES } from './data';
 import { googleMapsUrl, googleRouteUrl, openUrl } from './maps';
@@ -200,6 +200,13 @@ export function VenueDetail({ id, go }: { id: string; go: Go }) {
           <Card key={p.id}>
             <Text style={{ fontWeight: '800', color: C.ink }}>あなたの調査　<Text style={{ color: C.amber }}>満足度 {p.sat}</Text></Text>
             <Text style={{ color: C.ink2 }}>{p.dish}{p.vals.price ? ` ／ ¥${Number(p.vals.price).toLocaleString()}` : ''}</Text>
+            {p.photos?.length ? (
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {p.photos.map((ph) => (
+                    <Image key={ph.id} source={{ uri: ph.url }} style={{ width: 64, height: 64, borderRadius: 2, borderWidth: 3, borderColor: '#FFFFFF' }} />
+                  ))}
+                </View>
+              ) : null}
           </Card>
         ))}
       </View>

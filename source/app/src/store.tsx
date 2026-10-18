@@ -25,7 +25,9 @@ export type Post = {
   t: number;
   edits: Edit[];
   /** サーバ同期の進捗（アカウントがある時だけ）。key=visit.id、dishId=dish.id（端末で採番）。step は sync.ts 参照 */
-  sync?: { key: string; dishId: string; step: number };
+  sync?: { key: string; dishId: string; step: number; photosDone?: boolean };
+  /** アップロード済みの写真（最大3枚） */
+  photos?: { id: string; url: string }[];
 };
 export type Ledger = { n: number; r: string; t: number };
 export type Profile = {

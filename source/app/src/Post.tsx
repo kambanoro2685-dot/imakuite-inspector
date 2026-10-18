@@ -1,7 +1,9 @@
 import React from 'react';
 import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useDraft } from './draft';
+import { photoSupported, processPhoto } from './photo';
+import { uploadPhoto } from './storage';
+import { DraftPhoto, useDraft } from './draft';
 import { FIELDS, RANKS, TIER_TITLES } from './data';
 import { useVenues, walkMin } from './venues';
 import { Go } from './nav';
@@ -25,7 +27,8 @@ export function draftPoints(
   if (D.venue) p += 10;
   if (D.stamp) p += 15;
   if (D.rouletteId) p += 15;
-  for (const f of FIELDS) if (f.rank <= rankIdx && palette[f.k] && D.vals[f.k]) p += f.pt;
+  for (const f of FIELDS) if (f.rank <= rankIdx && palette[f.k] && D.vals[f.k] && f.type !== 'photo') p += f.pt;
+  if (palette.photo) p += 5 * Math.min(3, D.photos.length);
   if (D.venue && !visited.includes(D.venue)) p += 30;
   return p;
 }
@@ -46,20 +49,32 @@ export default function PostScreen({ go }: { go: Go }) {
 
   const setVal = (k: string, v: string) => setD((x) => ({ ...x, vals: { ...x.vals, [k]: v } }));
 
+  const upd = (id: string, patch: Partial<DraftPhoto>) =>
+    setD((x) => ({ ...x, photos: x.photos.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
+
   const pickPhoto = async () => {
-    if (D.vals.photo) return setVal('photo', '');
+    if (D.photos.length >= 3) return showToast('写真は1回の調査で3枚までです。');
+    if (!photoSupported) return showToast('写真の保存は、いまは Web 版でのみ使えます。');
+    let asset: ImagePicker.ImagePickerAsset | undefined;
     try {
-      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, exif: false };
-      let res: ImagePicker.ImagePickerResult;
-      if (Platform.OS === 'web') {
-        res = await ImagePicker.launchImageLibraryAsync(opts);
-      } else {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        res = perm.granted ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-      }
-      if (!res.canceled && res.assets[0]) setVal('photo', res.assets[0].uri);
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, exif: false });
+      asset = res.canceled ? undefined : res.assets[0];
     } catch {
-      showToast('写真を取得できませんでした。');
+      return showToast('写真を取得できませんでした。');
+    }
+    if (!asset) return;
+    const id = uuid4();
+    setD((x) => ({ ...x, photos: [...x.photos, { id, uri: asset!.uri, busy: !!(S.account && signedIn) }] }));
+    try {
+      const p = await processPhoto(asset.uri); // 縮小＋再エンコード（位置情報などのEXIFを除去）
+      upd(id, { uri: p.uri });
+      if (S.account && signedIn) {
+        const url = await uploadPhoto(p);
+        upd(id, { url, busy: false });
+      }
+    } catch (e: any) {
+      upd(id, { busy: false, error: e?.message ?? '保存できませんでした' });
+      showToast(`写真を保存できませんでした: ${e?.message ?? ''}`);
     }
   };
 
@@ -71,9 +86,13 @@ export default function PostScreen({ go }: { go: Go }) {
     if (!v) return showToast('店の情報を読み込めませんでした。もう一度選んでください。');
     const first = !S.visited.includes(v.id);
     const vals: Record<string, string> = {};
-    for (const f of active) if (D.vals[f.k]) vals[f.k] = D.vals[f.k];
+    for (const f of active) if (D.vals[f.k] && f.type !== 'photo') vals[f.k] = D.vals[f.k];
+    const usePhotos = active.some((f) => f.k === 'photo');
+    if (usePhotos && D.photos.length) vals.photo = String(D.photos.length);
+    if (usePhotos && D.photos.some((p) => p.busy)) return showToast('写真の保存が終わるまで少し待ってください。');
     const post: Post = {
-      id: Date.now(), venue: v.id, venueName: v.n, lat: v.lat, lng: v.lng, genre: v.g, dish: D.dish.trim(), sat: D.sat, vals,
+      id: Date.now(), venue: v.id, venueName: v.n, lat: v.lat, lng: v.lng, genre: v.g,
+      photos: usePhotos ? D.photos.filter((p) => p.url).map((p) => ({ id: p.id, url: p.url! })) : undefined, dish: D.dish.trim(), sat: D.sat, vals,
       weather: D.stamp ? D.stamp.weather : null, enteredAt: D.stamp ? D.stamp.enteredAt : null,
       first, pts, rouletteId: D.rouletteId, t: Date.now(), edits: [],
       sync: S.account && signedIn ? { key: uuid4(), dishId: uuid4(), step: 0 } : undefined,
@@ -186,9 +205,25 @@ export default function PostScreen({ go }: { go: Go }) {
               </View>
             ) : f.type === 'photo' ? (
               <View style={{ gap: 8 }}>
-                {D.vals[f.k] ? <Image source={{ uri: D.vals[f.k] }} style={{ width: '100%', height: 180, borderRadius: 2, borderWidth: 6, borderColor: "#FFFFFF" }} /> : null}
-                <Btn small kind="ghost" label={D.vals[f.k] ? '写真を外す' : '📷 写真を撮る／選ぶ'} onPress={pickPhoto} style={{ alignSelf: 'flex-start' }} />
-                <Muted>※ 現段階では端末内にだけ保存されます（位置情報は付けません）。</Muted>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {D.photos.map((p) => (
+                    <View key={p.id} style={{ width: 96 }}>
+                      <Image source={{ uri: p.uri }} style={{ width: 96, height: 96, borderRadius: 2, borderWidth: 4, borderColor: '#FFFFFF', opacity: p.busy ? 0.5 : 1 }} />
+                      <Text style={{ fontSize: 10.5, color: p.error ? C.crit : C.ink3 }}>
+                        {p.error ? '失敗' : p.busy ? '保存中…' : p.url ? '保存済み' : '端末内'}
+                      </Text>
+                      <Btn small kind="ghost" label="外す" onPress={() => setD((x) => ({ ...x, photos: x.photos.filter((q) => q.id !== p.id) }))} />
+                    </View>
+                  ))}
+                </View>
+                {D.photos.length < 3 ? (
+                  <Btn small kind="ghost" label={`📷 写真を選ぶ（${D.photos.length}/3）`} onPress={pickPhoto} style={{ alignSelf: 'flex-start' }} />
+                ) : null}
+                <Muted>
+                  端末で縮小し、撮影場所などの情報(EXIF)を取り除いてから保存します。
+                  {S.account ? '' : 'アカウントを登録すると、写真をサーバに保存できます（登録していないときは端末内のみ）。'}
+                  人の顔が写らないようにしてください（顔のぼかしは未対応です）。
+                </Muted>
               </View>
             ) : (
               <Input value={D.vals[f.k] ?? ''} onChangeText={(t) => setVal(f.k, t)} placeholder="話しかけるように書いてください" multiline />

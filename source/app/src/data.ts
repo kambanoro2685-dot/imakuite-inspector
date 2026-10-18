@@ -14,7 +14,7 @@ const GOOD3 = ['良い', 'ふつう', '気になる'];
 /** 階級ごとの入力項目。rank は解放される階級（0=見習い … 4=主任）。上の階級ほど詳しい調査ができる */
 export const FIELDS: FieldDef[] = [
   // ---- 見習い（0pt〜）: 基本項目 ----
-  { k: 'photo', n: '写真', pt: 15, rank: 0, type: 'photo' },
+  { k: 'photo', n: '写真（最大3枚）', pt: 5, rank: 0, type: 'photo', hint: '1枚ごとに +5pt（最大 +15pt）' },
   { k: 'price', n: '価格', pt: 10, rank: 0, type: 'price' },
   { k: 'note', n: '食べた後の感想', pt: 10, rank: 0, type: 'text' },
   { k: 'amount', n: '量', pt: 5, rank: 0, type: 'pick', opts: ['少なめ', 'ちょうど', '多め', '驚愕'] },

@@ -8,9 +8,13 @@ export type Draft = {
   vals: Record<string, string>;
   stamp: Stamp | null;
   rouletteId: string | null;
+  /** 添付する写真（最大3枚）。url があればアップロード済み */
+  photos: DraftPhoto[];
 };
 
-export const emptyDraft = (): Draft => ({ venue: null, dish: '', sat: 0, vals: {}, stamp: null, rouletteId: null });
+export type DraftPhoto = { id: string; uri: string; url?: string; busy?: boolean; error?: string };
+
+export const emptyDraft = (): Draft => ({ venue: null, dish: '', sat: 0, vals: {}, stamp: null, rouletteId: null, photos: [] });
 
 type Ctx = { D: Draft; setD: React.Dispatch<React.SetStateAction<Draft>>; clear: () => void };
 const DraftCtx = createContext<Ctx>(null as unknown as Ctx);

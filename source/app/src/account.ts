@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { deleteAllMyPhotos } from './storage';
 import { supabase, uuid4 } from './supabase';
 
 export type ServerMe = {
@@ -89,6 +90,7 @@ export async function hasPasskey(): Promise<boolean> {
 export const logout = () => supabase.auth.signOut({ scope: 'local' });
 
 export async function deleteAccount(): Promise<void> {
+  await deleteAllMyPhotos().catch(() => {}); // 画像ファイルを先に消す（記録の削除は delete_account）
   const { error } = await supabase.rpc('delete_account');
   if (error) throw error;
   await supabase.auth.signOut({ scope: 'local' });
