@@ -17,11 +17,23 @@ await db.exec(`
   grant usage on schema auth to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
 `);
+await db.exec(`
+  create schema storage;
+  create table storage.buckets (id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
+  create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+  alter table storage.objects enable row level security;
+  create function storage.foldername(name text) returns text[] language sql immutable as
+    $$ select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1] $$;
+  grant usage on schema storage to anon, authenticated;
+  grant select, insert, delete on storage.objects to authenticated;
+`);
 await db.exec(read('0001_init.sql'));
 await db.exec(read('0002_seed_shops.sql'));
 await db.exec(read('0003_bug_report.sql'));
 await db.exec(read('0004_rank_gated_points.sql'));
 await db.exec(read('0005_public_shop_search.sql'));
+await db.exec(read('0007_photos.sql'));
+await db.exec(read('0008_storage_visit_photos.sql'));
 
 let failed = 0, passed = 0;
 const ok = (c, name, extra = '') => { c ? passed++ : failed++; console.log(`${c ? 'PASS' : 'FAIL'}  ${name}${c ? '' : '  ' + extra}`); };
@@ -190,6 +202,34 @@ ok((await as(null, () => q('select * from public.search_shops(34.6667, 133.9188,
 ok((await as(null, () => err(q('select * from public.shop')))) !== null, '店舗テーブルの直接参照は引き続き不可');
 await q("insert into public.shop (name, name_norm, lat, lng, genre, source, osm_id) values ('重複試験', '重複試験', 34.6, 133.9, 'その他', 'osm', 'node/1')");
 ok((await err(q("insert into public.shop (name, name_norm, lat, lng, genre, source, osm_id) values ('重複試験', '重複試験', 34.6, 133.9, 'その他', 'osm', 'node/1')"))) !== null, 'osm_id の重複は入らない');
+
+// ===== 写真 =====
+const P = await newUser('写真試験');
+const pv = randomUUID();
+await as(P.id, () => q('insert into public.visit (id, shop_id, entered_at) values ($1, $2, now())', [pv, '00000000-0000-4000-8000-000000000001']));
+const url = (n) => `https://abcdefgh.supabase.co/storage/v1/object/public/visit-photos/${P.id}/${n}.webp`;
+const addPhoto = (n, u) => as(P.id, () => err(q('insert into public.photo (id, visit_id, storage_url) values ($1, $2, $3)', [randomUUID(), pv, u ?? url(n)])));
+ok((await addPhoto(1, 'https://evil.example/x.png')) !== null, '写真のURLは保存先バケット以外を拒否');
+const e1 = await addPhoto(1); const e2 = await addPhoto(2); const e3 = await addPhoto(3);
+ok(e1 === null && e2 === null && e3 === null, '写真を3枚まで追加できる', [e1, e2, e3].join(' | '));
+ok((await addPhoto(4)) !== null, '4枚目は拒否');
+await as(P.id, () => q("insert into public.visit_score (visit_id, satisfaction) values ($1, 70)", [pv]));
+const ps = await as(P.id, async () => (await q('select public.submit_visit($1) as r', [pv])).rows[0].r);
+ok(ps.breakdown.find((x) => x.kind === 'photo')?.amount === 15, '写真は1枚ごとに +5（3枚で +15）', JSON.stringify(ps.breakdown));
+ok((await as(P.id, () => err(q('insert into public.photo (id, visit_id, storage_url) values ($1, $2, $3)', [randomUUID(), pv, url(9)])))) !== null, '提出後は写真を足せない');
+
+// Storage: 自分のフォルダにだけ書ける
+const putObj = (uid, name) => as(uid, () => err(q("insert into storage.objects (bucket_id, name) values ('visit-photos', $1)", [name])));
+ok((await putObj(P.id, `${P.id}/a.webp`)) === null, '自分のフォルダには保存できる');
+ok((await putObj(P.id, `${A.id}/a.webp`)) !== null, '他人のフォルダには保存できない');
+ok((await putObj(P.id, 'root.webp')) !== null, 'フォルダ外には保存できない');
+ok((await as(null, () => err(q("insert into storage.objects (bucket_id, name) values ('visit-photos', 'x/y.webp')")))) !== null, '未ログインは保存できない');
+ok((await as(A.id, () => q("select * from storage.objects"))).rows.length === 0, '他人の画像一覧は見えない');
+ok((await q("select public, file_size_limit from storage.buckets where id = 'visit-photos'")).rows[0].file_size_limit === 1048576, 'バケットは1MB上限');
+
+// アカウント削除で写真の記録も消える
+await as(P.id, () => q('select public.delete_account()'));
+ok((await q('select count(*)::int as n from public.photo where visit_id = $1', [pv])).rows[0].n === 0, '削除: 写真の記録も消える');
 
 // ===== 不具合報告 =====
 const rep = (u, cat, msg) => as(u, () => q('select public.submit_bug_report($1, $2, $3, $4, $5) as r', [cat, msg, 'home', 'test-build', 'UA/1.0']));
