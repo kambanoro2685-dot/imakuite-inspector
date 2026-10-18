@@ -34,6 +34,7 @@ await db.exec(read('0004_rank_gated_points.sql'));
 await db.exec(read('0005_public_shop_search.sql'));
 await db.exec(read('0007_photos.sql'));
 await db.exec(read('0008_storage_visit_photos.sql'));
+await db.exec(read('0009_shop_reviews.sql'));
 
 let failed = 0, passed = 0;
 const ok = (c, name, extra = '') => { c ? passed++ : failed++; console.log(`${c ? 'PASS' : 'FAIL'}  ${name}${c ? '' : '  ' + extra}`); };
@@ -230,6 +231,91 @@ ok((await q("select public, file_size_limit from storage.buckets where id = 'vis
 // アカウント削除で写真の記録も消える
 await as(P.id, () => q('select public.delete_account()'));
 ok((await q('select count(*)::int as n from public.photo where visit_id = $1', [pv])).rows[0].n === 0, '削除: 写真の記録も消える');
+
+// ===== 評価一覧（階級・自分の入力による黒塗り）=====
+const SH = randomUUID(); // 他のテストと混ざらないよう、評価一覧専用の店を作る
+await q("insert into public.shop (id, name, name_norm, lat, lng, genre, source) values ($1, '評価一覧試験店', '評価一覧試験店', 34.7, 133.9, 'その他', 'osm')", [SH]);
+const reviewers = [];
+for (let i = 0; i < 4; i++) reviewers.push(await newUser('評価者' + i));
+const addReview = async (u, { days = 1, sat = 70, price = 900, comment = '感想', rank = 0 }) => {
+  const v = randomUUID();
+  await q('update public.inspector set rank = $2 where id = $1', [u.id, rank]);
+  await q(`insert into public.visit (id, inspector_id, shop_id, entered_at, submitted_at, comment, party_size, mood)
+           values ($1, $2, $3, now() - ($4 || ' days')::interval, now() - ($4 || ' days')::interval, $5, 2, 'good')`, [v, u.id, SH, String(days), comment]);
+  await q(`insert into public.visit_score (visit_id, satisfaction, clean_entrance, clean_seating, clean_tableware, clean_restroom, clean_kitchen, quietness, wait_min)
+           values ($1, $2, 0, 1, 0, 1, 0, 2, 10)`, [v, sat]);
+  await q(`insert into public.dish (id, visit_id, name, price_yen, volume, taste_sweet, taste_salty, taste_umami) values ($1, $2, '一押し', $3, 'just_right', 1, 4, 5)`, [randomUUID(), v, price]);
+  return v;
+};
+const r1 = await addReview(reviewers[0], { days: 2, sat: 90, price: 1100, rank: 2 });
+const r2 = await addReview(reviewers[1], { days: 10, sat: 40, price: 700 });
+const r3 = await addReview(reviewers[2], { days: 20, sat: 60, price: 900 });
+const r4 = await addReview(reviewers[3], { days: 60, sat: 80, price: 800 });
+await q("insert into public.revision (target_table, target_id, field, old_value, new_value, changed_by) values ('visit_score', $1, 'satisfaction', '70', '90', $2)", [r1, reviewers[0].id]);
+
+const VW = await newUser('閲覧者');
+const reviews = (sort = 'new') => as(VW.id, async () => (await q('select public.shop_reviews($1, $2, 50) as r', [SH, sort])).rows[0].r);
+const setRank = (n) => q('update public.inspector set rank = $2 where id = $1', [VW.id, n]);
+
+// 見習い・その店に行ったことがない → 読めない
+let rv = await reviews();
+ok(rv.scope === 'locked' && rv.items.length === 0 && rv.total === 4, '見習い: 行っていない店の評価は読めない（件数だけ）', JSON.stringify(rv).slice(0, 120));
+
+// その店に自分も投稿（価格とコメントだけ入力）
+const myv = randomUUID();
+await q("insert into public.visit (id, inspector_id, shop_id, entered_at, submitted_at, comment) values ($1, $2, $3, now(), now(), '自分の感想')", [myv, VW.id, SH]);
+await q("insert into public.visit_score (visit_id, satisfaction) values ($1, 75)", [myv]);
+await q("insert into public.dish (id, visit_id, name, price_yen) values ($1, $2, '自分の皿', 950)", [randomUUID(), myv]);
+
+rv = await reviews();
+const it = rv.items[0];
+ok(rv.scope === 'own_shop' && rv.items.length === 4, '見習い: 自分が行った店は読める', JSON.stringify(rv).slice(0, 100));
+ok(it.price.masked !== true && it.note.masked !== true, '見習い: 自分が入力した項目（価格・感想）は見える');
+ok(it.volume.masked && it.volume.reason === 'input', '見習い: 自分が入力していない項目は黒塗り（reason=input）');
+ok(it.clean.masked && it.clean.reason === 'rank' && it.clean.need_rank === 1, '見習い: 階級が足りない項目は黒塗り（reason=rank, need_rank=1）');
+ok(it.taste.masked && it.taste.need_rank === 2 && it.noise.need_rank === 4, '見習い: 味は二等、騒音は主任から');
+ok(it.photos.masked === true, '見習い: 写真は三等から');
+ok(!JSON.stringify(rv).includes('評価者') && !JSON.stringify(rv).includes(reviewers[0].id) && !JSON.stringify(rv).includes(reviewers[0].pid), '他人の名前・IDは返らない');
+ok(!rv.items.some((x) => x.dish === '自分の皿'), '自分の来店は「他の調査官」に含まれない');
+ok(Object.keys(rv.summary).length === 0 || rv.summary.satisfaction?.masked, '見習い: 平均値は見えない');
+
+// 三等: 直近30日だけ（60日前は除外）
+await setRank(1);
+rv = await reviews();
+ok(rv.scope === '30days' && rv.items.length === 3 && rv.total === 4, '三等: 直近30日の3件だけ見える（全4件）', JSON.stringify([rv.scope, rv.items.length]));
+ok(rv.items[0].clean.masked && rv.items[0].clean.reason === 'input', '三等: 階級は足りていても、未入力の項目（清掃）は黒塗り');
+ok(rv.items[0].photos.masked !== true, '三等: 写真が見える');
+await q("insert into public.visit_score (visit_id, satisfaction, clean_entrance) select id, 50, 0 from public.visit where inspector_id = $1 and id <> $2 and false", [VW.id, myv]);
+await q("update public.visit_score set clean_entrance = 0, quietness = 1 where visit_id = $1", [myv]);
+rv = await reviews();
+ok(rv.items[0].clean.masked !== true && rv.items[0].quiet.masked !== true, '三等: 清掃・静かさを入力したら見える');
+ok(rv.sort === 'new', '三等: 並べ替えはできない（常に新しい順）');
+ok(rv.items[0].taste.masked && rv.items[0].taste.reason === 'rank', '三等: 味は二等から');
+
+// 二等: 平均値
+await setRank(2);
+rv = await reviews();
+ok(rv.summary.satisfaction.avg !== undefined && rv.summary.n === 4, '二等: 全期間の平均満足度が見える', JSON.stringify(rv.summary.satisfaction));
+ok(rv.summary.taste.masked && rv.summary.taste.reason === 'input', '二等: 味の平均は、自分が味を入力するまで黒塗り');
+ok(rv.items.length === 3, '二等: 個別の評価は直近30日');
+
+// 一等: 全期間・並べ替え
+await setRank(3);
+rv = await reviews('high');
+ok(rv.scope === 'all' && rv.items.length === 4, '一等: 全期間の4件が見える');
+ok(rv.items.map((x) => x.satisfaction).join(',') === '90,80,60,40', '一等: 満足度の高い順に並べ替えできる', rv.items.map((x) => x.satisfaction).join(','));
+rv = await reviews('cheap');
+ok(rv.items[0].price.price_yen === 700, '一等: 安い順に並べ替えできる');
+ok(rv.items[0].corrections.masked && rv.items[0].corrections.need_rank === 4, '一等: 訂正履歴は主任から');
+
+// 主任: 訂正履歴
+await setRank(4);
+rv = await reviews('high');
+ok(rv.items.some((x) => Array.isArray(x.corrections) && x.corrections.length === 1 && x.corrections[0].field === 'satisfaction'), '主任: 訂正履歴が見える');
+ok(rv.items.every((x) => x.reviewer.rank_name && x.reviewer.trust !== undefined), '評価者は階級と信頼スコアだけ表示');
+
+// 権限
+ok((await as(null, () => err(q('select public.shop_reviews($1)', [SH])))) !== null, '未ログインは評価一覧を呼べない');
 
 // ===== 不具合報告 =====
 const rep = (u, cat, msg) => as(u, () => q('select public.submit_bug_report($1, $2, $3, $4, $5) as r', [cat, msg, 'home', 'test-build', 'UA/1.0']));
