@@ -35,6 +35,7 @@ await db.exec(read('0005_public_shop_search.sql'));
 await db.exec(read('0007_photos.sql'));
 await db.exec(read('0008_storage_visit_photos.sql'));
 await db.exec(read('0009_shop_reviews.sql'));
+await db.exec(read('0010_terms_acceptance.sql'));
 
 let failed = 0, passed = 0;
 const ok = (c, name, extra = '') => { c ? passed++ : failed++; console.log(`${c ? 'PASS' : 'FAIL'}  ${name}${c ? '' : '  ' + extra}`); };
@@ -316,6 +317,26 @@ ok(rv.items.every((x) => x.reviewer.rank_name && x.reviewer.trust !== undefined)
 
 // 権限
 ok((await as(null, () => err(q('select public.shop_reviews($1)', [SH])))) !== null, '未ログインは評価一覧を呼べない');
+
+// ===== 利用規約の同意 =====
+const TU = await newUser('規約試験');
+const accept = (u, v) => as(u.id, () => q('select public.accept_terms($1) as r', [v]));
+ok((await me(TU)).terms_version === null, '最初は同意の記録がない');
+ok((await accept(TU, '2026-10-18')).rows[0].r.ok === true, '規約に同意できる');
+ok((await me(TU)).terms_version === '2026-10-18', 'me() が同意した版を返す');
+await accept(TU, '2026-10-18');
+ok((await q('select count(*)::int as n from public.terms_acceptance where inspector_id = $1', [TU.id])).rows[0].n === 1, '同じ版への再同意は重複しない');
+await new Promise((r) => setTimeout(r, 15));
+await accept(TU, '2027-01-01');
+ok((await me(TU)).terms_version === '2027-01-01', '新しい版に同意すると、最新の版が返る');
+ok((await as(TU.id, () => err(q('select public.accept_terms($1)', ['<script>'])))).includes('invalid_version'), '不正な版の文字列を拒否');
+ok((await as(null, () => err(q("select public.accept_terms('x')")))) !== null, '未ログインは同意を記録できない');
+ok((await as(TU.id, () => err(q('select * from public.terms_acceptance')))) !== null, '同意の記録は直接読めない');
+ok((await as(TU.id, () => err(q("insert into public.terms_acceptance (inspector_id, version) values ($1, 'x')", [TU.id])))) !== null, '直接INSERTできない');
+const anonUser = randomUUID(); await q('insert into auth.users (id) values ($1)', [anonUser]);
+ok((await as(anonUser, () => err(q("select public.accept_terms('2026-10-18')")))).includes('not_registered'), '調査官として未登録だと記録できない');
+await as(TU.id, () => q('select public.delete_account()'));
+ok((await q('select count(*)::int as n from public.terms_acceptance where inspector_id = $1', [TU.id])).rows[0].n === 0, '削除: 同意の記録も消える');
 
 // ===== 不具合報告 =====
 const rep = (u, cat, msg) => as(u, () => q('select public.submit_bug_report($1, $2, $3, $4, $5) as r', [cat, msg, 'home', 'test-build', 'UA/1.0']));
