@@ -44,6 +44,8 @@ export type State = {
   /** Supabase のアカウント。null は端末内だけで使うモード。passkey=false は匿名のまま（パスキー未設定） */
   account: { publicId: string; passkey: boolean } | null;
   profile: Profile;
+  /** 同意した利用規約の版。synced=false はサーバへ記録できていない（接続できたら送る） */
+  terms: { version: string; at: number; synced: boolean } | null;
   pt: number;
   trust: number;
   visited: string[]; // 訪問済みの shop.id
@@ -73,6 +75,7 @@ export function freshState(): State {
     onboarded: false,
     account: null,
     profile: { nickname: '', nationality: '日本', gender: '', age: '', allergies: '', favorites: [] },
+    terms: null,
     pt: 0,
     trust: 50,
     visited: [],

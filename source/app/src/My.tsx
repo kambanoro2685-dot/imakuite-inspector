@@ -3,6 +3,8 @@ import { Image, ScrollView, Text, View } from 'react-native';
 import { addPasskey, deleteAccount, fetchMe, friendly, logout, passkeySupported } from './account';
 import { RANKS } from './data';
 import { SYNC_DONE } from './sync';
+import { TermsSheet } from './TermsSheet';
+import { TERMS_VERSION } from './terms';
 import { supabase } from './supabase';
 import { Post, rankOf, useStore } from './store';
 import { C, mono } from './theme';
@@ -23,6 +25,7 @@ export default function My() {
   const { S, signedIn, update, addPoints, addTrust, reset, showToast } = useStore();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pkErr, setPkErr] = useState('');
+  const [showTerms, setShowTerms] = useState(false);
   const r = rankOf(S.pt);
   const idx = RANKS.indexOf(r);
   const next = RANKS[idx + 1];
@@ -149,6 +152,17 @@ export default function My() {
           </View>
         ))}
       </View>
+
+      <Card>
+        <Lbl>利用規約への同意</Lbl>
+        <Muted>
+          {S.terms
+            ? `同意した版: ${S.terms.version}（${new Date(S.terms.at).toLocaleDateString('ja-JP')}）${S.terms.version !== TERMS_VERSION ? '　※ 新しい版があります' : ''}${S.account && !S.terms.synced ? '　※ サーバへの記録は送信待ち' : ''}`
+            : '未同意'}
+        </Muted>
+        <Btn small kind="ghost" label="📄 利用規約・プライバシーポリシーを読む" onPress={() => setShowTerms(true)} style={{ alignSelf: 'flex-start' }} />
+      </Card>
+      <TermsSheet visible={showTerms} onClose={() => setShowTerms(false)} />
 
       {S.account ? (
         <Card>

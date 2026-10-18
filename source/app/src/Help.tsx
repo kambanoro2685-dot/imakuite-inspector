@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { RANKS } from './data';
 import { Go } from './nav';
 import { rankOf, useStore } from './store';
 import { C, font, mono } from './theme';
+import { TermsSheet } from './TermsSheet';
 import { Btn, Card, Head, Lbl, Meter, Muted } from './ui';
 
 // サーバが計算するポイント（supabase/migrations/0001_init.sql の submit_visit と一致させる）
@@ -56,6 +57,7 @@ const FAQ: [string, string][] = [
 
 export default function Help({ go }: { go: Go }) {
   const { S } = useStore();
+  const [showTerms, setShowTerms] = useState(false);
   const cur = rankOf(S.pt);
   const idx = RANKS.indexOf(cur);
   const next = RANKS[idx + 1];
@@ -153,6 +155,8 @@ export default function Help({ go }: { go: Go }) {
       </View>
 
       <Btn kind="ghost" label="困ったとき・見つけた不具合は「不具合報告」へ" onPress={() => go('report')} />
+      <Btn kind="ghost" label="📄 利用規約・プライバシーポリシー" onPress={() => setShowTerms(true)} />
+      <TermsSheet visible={showTerms} onClose={() => setShowTerms(false)} />
     </ScrollView>
   );
 }

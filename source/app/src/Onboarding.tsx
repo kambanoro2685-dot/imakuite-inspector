@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { addPasskey, friendly, loginWithPasskey, passkeySupported, startAccount } from './account';
+import { addPasskey, friendly, loginWithPasskey, passkeySupported, recordTerms, startAccount } from './account';
+import { CHECKBOX_TEXT, TERMS_VERSION } from './terms';
+import { TermsSheet } from './TermsSheet';
 import { BUILD } from './config';
 import { GENRES } from './data';
 import { useStore } from './store';
 import { pushProfile } from './sync';
 import { C } from './theme';
-import { Btn, Card, Chip, Chips, Input, Lbl, Muted } from './ui';
+import { Btn, Card, Check, Chip, Chips, Input, Lbl, Muted } from './ui';
 
 const GENDERS = ['回答しない', '女性', '男性', 'その他'];
 const AGES = ['〜19', '20代', '30代', '40代', '50代', '60代〜'];
@@ -21,6 +23,8 @@ export default function Onboarding() {
   const [favs, setFavs] = useState<string[]>(S.profile.favorites);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const canPasskey = passkeySupported();
 
   const toggle = (g: string) => setFavs((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]));
@@ -35,13 +39,14 @@ export default function Onboarding() {
   const validate = () => {
     if (!nick.trim()) { showToast('調査官名（ニックネーム）を入れてください。本名は不要です。'); return false; }
     if (favs.length === 0) { showToast('好きな食べ物を1つ以上選んでください。'); return false; }
+    if (!agree) { showToast('利用規約とプライバシーポリシーへの同意が必要です。チェックを入れてください。'); return false; }
     return true;
   };
 
   // ---- 端末内だけで使う（従来どおり）----
   const startLocal = () => {
     if (!validate()) return;
-    update((s) => ({ ...s, onboarded: true, account: null, profile: profile() }));
+    update((s) => ({ ...s, onboarded: true, account: null, profile: profile(), terms: { version: TERMS_VERSION, at: Date.now(), synced: true } }));
     addPoints(20, '調査官登録（プロフィール入力）');
     showToast('登録完了。+20pt。最初の任務は「入店を記録する」です。');
   };
@@ -54,7 +59,10 @@ export default function Onboarding() {
     try {
       const { publicId } = await startAccount(nick.trim());
       const p = profile();
-      update((s) => ({ ...s, onboarded: true, account: { publicId, passkey: false }, uid: publicId, pt: 0, trust: 50, profile: p }));
+      update((s) => ({ ...s, onboarded: true, account: { publicId, passkey: false }, uid: publicId, pt: 0, trust: 50, profile: p, terms: { version: TERMS_VERSION, at: Date.now(), synced: false } }));
+      recordTerms(TERMS_VERSION)
+        .then(() => update((s) => (s.terms ? { ...s, terms: { ...s.terms, synced: true } } : s)))
+        .catch(() => {}); // 送れなかったら、接続できたときに自動で再送する
       pushProfile(p).catch(() => {});
       try {
         await addPasskey();
@@ -89,6 +97,8 @@ export default function Onboarding() {
         pt: me.ikp,
         trust: Math.round(me.trust_score / 10),
         profile: { ...s.profile, nickname: me.codename, favorites: s.profile.favorites.length ? s.profile.favorites : favs },
+        // 同意済みの版が現行ならそのまま。そうでなければ、次の画面で同意を求める
+        terms: me.terms_version === TERMS_VERSION ? { version: TERMS_VERSION, at: Date.now(), synced: true } : null,
       }));
       showToast(`おかえりなさい、${me.codename} 調査官。`);
     } catch (e) {
@@ -172,6 +182,12 @@ export default function Onboarding() {
         <Muted>アレルギーはこの端末の中にだけ保存します（サーバには送りません）。身長・体重は、投稿のたびに任意で記録できる項目として別に用意する予定です。</Muted>
       </View>
 
+      <Card>
+        <Lbl>⑦ 利用規約への同意</Lbl>
+        <Check on={agree} label={CHECKBOX_TEXT} onPress={() => setAgree(!agree)} />
+        <Btn small kind="ghost" label="📄 利用規約・プライバシーポリシーを読む" onPress={() => setShowTerms(true)} style={{ alignSelf: 'flex-start' }} />
+      </Card>
+
       {canPasskey ? (
         <>
           <Btn label={busy ? '登録中…' : 'アカウントを登録する（パスキー・推奨）'} onPress={register} />
@@ -187,6 +203,7 @@ export default function Onboarding() {
           <Muted>この環境ではパスキーを使えないため、端末内だけで保存します（アカウント機能は現在 Web 版のみ）。</Muted>
         </>
       )}
+      <TermsSheet visible={showTerms} onClose={() => setShowTerms(false)} />
       <Text style={{ color: C.ink3, fontSize: 11, textAlign: 'center' }}>build {BUILD}</Text>
     </ScrollView>
   );

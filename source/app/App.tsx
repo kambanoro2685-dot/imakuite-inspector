@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { fetchMe } from './src/account';
+import { fetchMe, recordTerms } from './src/account';
 import { supabase } from './src/supabase';
 import { SYNC_DONE } from './src/sync';
 import { useSyncer } from './src/useSyncer';
@@ -10,6 +10,8 @@ import { DraftProvider } from './src/draft';
 import Home from './src/Home';
 import { Go, Screen } from './src/nav';
 import Onboarding from './src/Onboarding';
+import TermsGate from './src/TermsGate';
+import { TERMS_VERSION } from './src/terms';
 import PostScreen, { Palette } from './src/Post';
 import Roulette from './src/Roulette';
 import { Search, VenueDetail } from './src/Search';
@@ -100,6 +102,16 @@ function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, signedIn]);
   const [venueId, setVenueId] = useState('');
+  // 規約に（現行の版で）同意していなければ、同意するまで先へ進めない
+  const needTerms = ready && S.onboarded && S.terms?.version !== TERMS_VERSION;
+
+  // 同意の記録がサーバに届いていなければ、接続できたときに送る
+  useEffect(() => {
+    if (!ready || !signedIn || !S.account || !S.terms || S.terms.synced || S.terms.version !== TERMS_VERSION) return;
+    recordTerms(S.terms.version)
+      .then(() => update((s) => (s.terms ? { ...s, terms: { ...s.terms, synced: true } } : s)))
+      .catch(() => {});
+  }, [ready, signedIn, S.account, S.terms]); // eslint-disable-line react-hooks/exhaustive-deps
   const [prev, setPrev] = useState<Screen>('home');
   const go: Go = (to, id) => {
     if (id !== undefined) setVenueId(id);
@@ -137,7 +149,7 @@ function Shell() {
         ]}
       >
         {/* インデックス見出し（色分け・上側） */}
-        {S.onboarded ? (
+        {S.onboarded && !needTerms ? (
           <View onLayout={(e) => setTabsW(e.nativeEvent.layout.width)} style={{ gap: 2, paddingHorizontal: 4 }}>
             {tabRows.map((row, ri) => (
               <View key={ri} style={{ flexDirection: 'row', gap: 3, alignItems: 'flex-end' }}>
@@ -168,7 +180,9 @@ function Shell() {
         {/* 紙 */}
         <SafeAreaView style={[{ flex: 1, backgroundColor: C.ground, borderRadius: 3, overflow: 'hidden', paddingLeft: 12 }, ruled]}>
           <View pointerEvents="none" style={{ position: 'absolute', left: 8, top: 0, bottom: 0, width: 1.5, backgroundColor: C.margin }} />
-          {S.onboarded ? (
+          {needTerms ? (
+            <TermsGate />
+          ) : S.onboarded ? (
             <>
               {/* ファイル見出しのラベル */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderColor: C.line }}>

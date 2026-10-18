@@ -8,6 +8,7 @@ export type ServerMe = {
   trust_score: number;
   ikp: number;
   rank: number;
+  terms_version: string | null;
 };
 
 /** パスキーは現在 Web 版のみ対応（ネイティブは専用モジュールと関連ドメインの設定が要る） */
@@ -94,4 +95,10 @@ export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.rpc('delete_account');
   if (error) throw error;
   await supabase.auth.signOut({ scope: 'local' });
+}
+
+/** 同意した規約の版をサーバに記録する（ログイン中のアカウントのみ） */
+export async function recordTerms(version: string): Promise<void> {
+  const { error } = await supabase.rpc('accept_terms', { p_version: version });
+  if (error) throw error;
 }
