@@ -8,6 +8,7 @@ import { Go } from './nav';
 import { useStore } from './store';
 import { C, mono } from './theme';
 import { visitedPins, pinLabel } from './pins';
+import ShopReviews from './Reviews';
 import { Venue, useVenues, walkMin } from './venues';
 import { Btn, Card, Chip, Chips, Head, Input, Lbl, Muted, s } from './ui';
 
@@ -194,7 +195,6 @@ export function VenueDetail({ id, go }: { id: string; go: Go }) {
           <Text style={{ color: C.ink, fontWeight: '800' }}>
             {v.reviews ? `${v.reviews + mine.length}人の調査官が評価しています` : 'まだ調査待ちです（3件集まると評価が表示されます）'}
           </Text>
-          <Muted>他の調査官の評価は、件数が集まってから表示します。階級が上がるほど、見られる範囲が広がります。</Muted>
         </Card>
         {mine.map((p) => (
           <Card key={p.id}>
@@ -210,6 +210,7 @@ export function VenueDetail({ id, go }: { id: string; go: Go }) {
           </Card>
         ))}
       </View>
+      <ShopReviews shopId={v.id} />
       <Credit />
     </ScrollView>
   );
