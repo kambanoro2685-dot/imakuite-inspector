@@ -140,7 +140,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             visited: (loaded.visited ?? []).map(fix),
             posts: (loaded.posts ?? []).map((p) => ({ ...p, venue: fix(p.venue) })),
           };
-          setS({ ...base, ...migrated, account, profile: { ...base.profile, ...loaded.profile } });
+          setS({ ...base, ...migrated, account, profile: { ...base.profile, ...loaded.profile, favorites: (loaded.profile?.favorites ?? []).map((f) => (f === '定食' ? '無国籍' : f)) } });
         }
         setSignedIn(!!sess?.data?.session);
       })

@@ -1,4 +1,4 @@
-export const GENRES = ['ラーメン', '麺類', '寿司', '和食', '中華', '焼肉・焼鳥', 'カレー', '洋食', '居酒屋', 'カフェ', 'ファストフード', 'スイーツ', '定食'];
+export const GENRES = ['ラーメン', '麺類', '寿司', '和食', '中華', '焼肉・焼鳥', 'カレー', '洋食', '居酒屋', 'カフェ', 'ファストフード', 'スイーツ', '無国籍'];
 
 export type FieldDef = { k: string; n: string; pt: number; rank: number; hint?: string } & (
   | { type: 'photo' | 'price' | 'text' }
