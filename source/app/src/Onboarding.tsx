@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { addPasskey, friendly, loginWithPasskey, passkeySupported, recordTerms, startAccount } from './account';
+import { addPasskey, friendly, loginWithPasskey, loginWithRecoveryCode, passkeySupported, recordTerms, startAccount } from './account';
 import { CHECKBOX_TEXT, TERMS_VERSION } from './terms';
 import { TermsSheet } from './TermsSheet';
 import { BUILD } from './config';
@@ -26,6 +26,8 @@ export default function Onboarding() {
   const [agree, setAgree] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const canPasskey = passkeySupported();
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [rcode, setRcode] = useState('');
 
   const toggle = (g: string) => setFavs((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]));
   const profile = () => ({ nickname: nick.trim(), nationality: nat.trim(), gender, age, allergies: allergy.trim(), favorites: favs });
@@ -67,7 +69,7 @@ export default function Onboarding() {
       try {
         await addPasskey();
         update((s) => (s.account ? { ...s, account: { ...s.account, passkey: true } } : s));
-        showToast('登録完了。パスキーを設定しました。最初の任務は「入店を記録する」です。');
+        showToast('登録完了。パスキーを設定しました。マイページで「復旧コード」も発行しておくと、パスキーをなくしても戻れます。');
       } catch (e) {
         // 登録自体は完了している。パスキーだけ後からマイページで設定できる
         setErr(`登録は完了しましたが、パスキーは未設定です。マイページから設定できます。
@@ -83,16 +85,16 @@ export default function Onboarding() {
   };
 
   // ---- 既存アカウントでログイン ----
-  const login = async () => {
+  const login = (recovery = false) => async () => {
     if (busy) return;
     setBusy(true);
     setErr('');
     try {
-      const me = await loginWithPasskey();
+      const me = recovery ? await loginWithRecoveryCode(rcode) : await loginWithPasskey();
       update((s) => ({
         ...s,
         onboarded: true,
-        account: { publicId: me.public_id, passkey: true },
+        account: { publicId: me.public_id, passkey: !recovery, recovery },
         uid: me.public_id,
         pt: me.ikp,
         trust: Math.round(me.trust_score / 10),
@@ -128,7 +130,15 @@ export default function Onboarding() {
       {canPasskey ? (
         <Card flat>
           <Lbl>すでに登録済みの方</Lbl>
-          <Btn kind="ghost" label={busy ? '確認中…' : 'パスキーでログイン'} onPress={login} />
+          <Btn kind="ghost" label={busy ? '確認中…' : 'パスキーでログイン'} onPress={login()} />
+          <Btn small kind="ghost" label={showRecovery ? '閉じる' : 'パスキーをなくした・使えない方（復旧コード）'} onPress={() => setShowRecovery(!showRecovery)} style={{ alignSelf: 'flex-start' }} />
+          {showRecovery ? (
+            <View style={{ gap: 8 }}>
+              <Muted>マイページで発行した「復旧コード」（IKRC- で始まる文字列）を貼り付けてください。</Muted>
+              <Input value={rcode} onChangeText={setRcode} placeholder="IKRC-…" autoCapitalize="none" autoCorrect={false} />
+              <Btn small label={busy ? '確認中…' : '復旧コードでログイン'} onPress={login(true)} />
+            </View>
+          ) : null}
         </Card>
       ) : null}
 

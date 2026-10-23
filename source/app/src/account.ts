@@ -62,8 +62,8 @@ export async function startAccount(codename: string): Promise<{ publicId: string
   return { publicId: (data as any).public_id as string };
 }
 
-function randomPassword(): string {
-  const b = new Uint8Array(32);
+function randomPassword(len = 32): string {
+  const b = new Uint8Array(len);
   crypto.getRandomValues(b);
   return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -78,6 +78,35 @@ export async function addPasskey(): Promise<void> {
 export async function loginWithPasskey(): Promise<ServerMe> {
   const { error } = await supabase.auth.signInWithPasskey();
   if (error) throw error;
+  const me = await fetchMe();
+  if (!me) throw new Error('このアカウントは削除されています。');
+  return me;
+}
+
+/**
+ * 復旧コード: パスキーをなくしたときの、もう1つのログイン手段。
+ * アカウントの合成メール（32桁）と、新しいランダムなパスワード（128bit）を1本の文字列にしたもの。
+ * 画面に出すのは発行時の1回だけ（サーバにはパスワードのハッシュしか残らない）。再発行すると、前のコードは使えなくなる。
+ */
+const RECOVERY_PREFIX = 'IKRC-';
+const RECOVERY_DOMAIN = '@users.imakuite.invalid';
+
+export async function issueRecoveryCode(): Promise<string> {
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email ?? '';
+  if (!email.endsWith(RECOVERY_DOMAIN)) throw new Error('このアカウントでは復旧コードを発行できません。');
+  const password = randomPassword(16).replace(/[^A-Za-z0-9]/g, 'x').padEnd(22, 'x').slice(0, 22);
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+  return `${RECOVERY_PREFIX}${email.slice(0, -RECOVERY_DOMAIN.length)}-${password}`;
+}
+
+export async function loginWithRecoveryCode(code: string): Promise<ServerMe> {
+  const c = code.replace(/s+/g, '');
+  const m = /^IKRC-([0-9a-f]{32})-([A-Za-z0-9]{22})$/.exec(c);
+  if (!m) throw new Error('復旧コードの形式が正しくありません。コピーしたものをそのまま貼り付けてください。');
+  const { error } = await supabase.auth.signInWithPassword({ email: m[1] + RECOVERY_DOMAIN, password: m[2] });
+  if (error) throw new Error(/invalid/i.test(error.message) ? '復旧コードが違うか、再発行で無効になっています。' : error.message);
   const me = await fetchMe();
   if (!me) throw new Error('このアカウントは削除されています。');
   return me;

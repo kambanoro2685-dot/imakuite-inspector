@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image, ScrollView, Text, View } from 'react-native';
-import { addPasskey, deleteAccount, fetchMe, friendly, logout, passkeySupported } from './account';
+import { addPasskey, deleteAccount, fetchMe, friendly, issueRecoveryCode, logout, passkeySupported } from './account';
 import { RANKS } from './data';
 import { SYNC_DONE } from './sync';
 import { useSamples } from './sample';
@@ -26,6 +26,8 @@ export default function My() {
   const { S, signedIn, update, addPoints, addTrust, reset, showToast } = useStore();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pkErr, setPkErr] = useState('');
+  const [rcode, setRcode] = useState('');
+  const [rbusy, setRbusy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const samples = useSamples();
   const r = rankOf(S.pt);
@@ -191,6 +193,30 @@ export default function My() {
                 showToast('パスキーを設定しました。');
               } catch (e: any) { setPkErr(`${friendly(e)}  [${e?.name ?? ''}${e?.code ? ' ' + e.code : ''}${e?.status ? ' ' + e.status : ''}]`); }
             }} />
+          ) : null}
+          <Lbl>復旧コード</Lbl>
+          <Muted>
+            パスキーをなくしたとき・端末を替えたときに、ログインできるコードです。{S.account.recovery ? '発行済み。再発行すると、前のコードは使えなくなります。' : 'まだ発行していません。'}
+          </Muted>
+          <Btn small kind={S.account.recovery ? 'ghost' : 'solid'} label={rbusy ? '発行中…' : S.account.recovery ? '復旧コードを再発行する' : '🔑 復旧コードを発行する'} onPress={async () => {
+            if (rbusy) return;
+            setRbusy(true);
+            setPkErr('');
+            try {
+              setRcode(await issueRecoveryCode());
+              update((st) => (st.account ? { ...st, account: { ...st.account, recovery: true } } : st));
+            } catch (e: any) { setPkErr(friendly(e)); } finally { setRbusy(false); }
+          }} />
+          {rcode ? (
+            <View style={{ gap: 8, backgroundColor: C.amberSoft, padding: 12, borderRadius: 3, borderWidth: 2, borderColor: C.crit, borderStyle: 'dashed' }}>
+              <Text style={{ color: C.crit, fontWeight: '800' }}>この画面を閉じると、二度と表示できません。</Text>
+              <Text selectable style={{ fontFamily: mono, fontSize: 13, color: C.ink, lineHeight: 20 }}>{rcode}</Text>
+              <Muted>パスワードマネージャーや、人に見られない場所に保管してください。このコードを知っている人は、あなたのアカウントに入れます。</Muted>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Btn small label="コピー" onPress={() => { try { (navigator as any).clipboard.writeText(rcode); showToast('コピーしました。'); } catch { showToast('コピーできませんでした。文字を選んでコピーしてください。'); } }} style={{ flex: 1 }} />
+                <Btn small kind="ghost" label="保管した（閉じる）" onPress={() => setRcode('')} style={{ flex: 1 }} />
+              </View>
+            </View>
           ) : null}
           {pkErr ? <Text selectable style={{ color: C.crit, fontWeight: '700', lineHeight: 20 }}>{pkErr}</Text> : null}
           <Btn small kind="ghost" label="ログアウト" onPress={async () => { await logout(); reset(); }} />

@@ -44,7 +44,7 @@ export type State = {
   uid: string;
   onboarded: boolean;
   /** Supabase のアカウント。null は端末内だけで使うモード。passkey=false は匿名のまま（パスキー未設定） */
-  account: { publicId: string; passkey: boolean } | null;
+  account: { publicId: string; passkey: boolean; recovery?: boolean } | null;
   profile: Profile;
   /** 同意した利用規約の版。synced=false はサーバへ記録できていない（接続できたら送る） */
   terms: { version: string; at: number; synced: boolean } | null;
