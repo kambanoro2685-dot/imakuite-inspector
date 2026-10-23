@@ -9,6 +9,7 @@ import { Credit, RankMix } from './Search';
 import { today, useStore } from './store';
 import { C, mono } from './theme';
 import { Venue, useVenues, walkMin } from './venues';
+import ShopReviews from './Reviews';
 import { Btn, Chip, Chips, Head, Lbl, Muted } from './ui';
 
 const GENRE_OPTS = ['すべて', 'ラーメン', '麺類', '寿司', '和食', '中華', '焼肉・焼鳥', 'カレー', '洋食', '居酒屋', 'カフェ'];
@@ -169,6 +170,7 @@ export default function Roulette({ go }: { go: Go }) {
             <Btn kind="ghost" label="引き直す" onPress={spin} style={{ flex: 1 }} />
             <Btn label="ここに行く" onPress={goThere} style={{ flex: 1 }} />
           </View>
+          <ShopReviews key={win.id} shopId={win.id} />
           <Muted>「ここに行く」で +15pt。帰ってきたら事後評価で さらに +10pt。調査を提出すると、この店があなたの調査マップに追加されます。</Muted>
           <Credit />
         </View>
