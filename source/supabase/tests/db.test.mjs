@@ -36,6 +36,7 @@ await db.exec(read('0007_photos.sql'));
 await db.exec(read('0008_storage_visit_photos.sql'));
 await db.exec(read('0009_shop_reviews.sql'));
 await db.exec(read('0010_terms_acceptance.sql'));
+await db.exec(read('0011_shop_rank_mix.sql'));
 
 let failed = 0, passed = 0;
 const ok = (c, name, extra = '') => { c ? passed++ : failed++; console.log(`${c ? 'PASS' : 'FAIL'}  ${name}${c ? '' : '  ' + extra}`); };
@@ -167,6 +168,8 @@ const st2 = await as(A.id, async () => (await q('select public.shop_stats($1) as
 ok(st2.review_count >= 3 && st2.avg_satisfaction !== null, '3件以上で集計が開く', JSON.stringify(st2));
 const s2 = await as(A.id, () => q('select * from public.search_shops(34.6667, 133.9188, 300)'));
 ok(s2.rows.find((r) => r.id === SHOP)?.review_count >= 3, '検索結果にも件数が出る');
+const rc = s2.rows.find((r) => r.id === SHOP)?.rank_counts;
+ok(Array.isArray(rc) && rc.length === 6 && rc.reduce((a, b) => a + b, 0) === s2.rows.find((r) => r.id === SHOP).review_count, '検索結果に階級ごとの件数が出る', JSON.stringify(rc));
 
 // ===== 階級ごとの詳細項目と加点 =====
 const R = await newUser('階級試験');
@@ -199,6 +202,7 @@ ok(k4.includes('noise_measured'), '主任: 騒音の測定が加点される', k
 // ===== 店舗検索の公開 =====
 const pub = await as(null, () => q('select * from public.search_shops(34.6667, 133.9188, 1500)'));
 ok(pub.rows.length >= 8, '未ログインでも店舗検索ができる');
+ok(pub.rows.every((r) => r.review_count === null ? r.rank_counts === null : true), '3件未満の店は階級の内訳を出さない');
 ok((await as(null, () => q('select * from public.search_shops(34.6667, 133.9188, 1500, null, null, 3)'))).rows.length === 3, '件数の上限(p_limit)が効く');
 ok((await as(null, () => q('select * from public.search_shops(34.6667, 133.9188, 1500, null, $1)', ['ラーメン']))).rows.length === 1, 'ジャンルで絞り込める');
 ok((await as(null, () => err(q('select * from public.shop')))) !== null, '店舗テーブルの直接参照は引き続き不可');
