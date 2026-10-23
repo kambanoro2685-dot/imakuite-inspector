@@ -77,7 +77,7 @@ export default function Home({ go }: { go: Go }) {
         <Card>
           <Lbl>直近の調査記録</Lbl>
           <Text style={{ fontSize: 14, color: C.ink, lineHeight: 22 }}>
-            <Text style={{ fontWeight: '800' }}>{last.venueName}</Text> で <Text style={{ fontWeight: '800' }}>{last.dish}</Text>。満足度は {last.sat}。
+            <Text style={{ fontWeight: '800' }}>{last.venueName}</Text>{last.sample ? '（見本）' : ''} で <Text style={{ fontWeight: '800' }}>{last.dish}</Text>。満足度は {last.sat}。
           </Text>
         </Card>
       ) : null}

@@ -28,6 +28,8 @@ export type Post = {
   sync?: { key: string; dishId: string; step: number; photosDone?: boolean };
   /** アップロード済みの写真（最大3枚） */
   photos?: { id: string; url: string }[];
+  /** 見本データ（この端末だけ。サーバへ送らず、ポイントにも数えない） */
+  sample?: boolean;
 };
 export type Ledger = { n: number; r: string; t: number };
 export type Profile = {
@@ -47,7 +49,7 @@ export type State = {
   /** 同意した利用規約の版。synced=false はサーバへ記録できていない（接続できたら送る） */
   terms: { version: string; at: number; synced: boolean } | null;
   /** ルーレットで「ここに行く」を押した店（今日の指令）。24時間、地図に載る */
-  mission: { id: string; n: string; g: string; lat: number; lng: number; at: number } | null;
+  mission: { id: string; n: string; g: string; lat: number; lng: number; at: number; sample?: boolean } | null;
   pt: number;
   trust: number;
   visited: string[]; // 訪問済みの shop.id

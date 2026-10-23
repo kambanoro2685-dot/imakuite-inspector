@@ -5,6 +5,7 @@ import MapView from './MapView';
 import { Go } from './nav';
 import { pinLabel, visitedPins } from './pins';
 import { Credit } from './Search';
+import { useSamples } from './sample';
 import { useStore } from './store';
 import { C, mono } from './theme';
 import { useVenues, walkMin } from './venues';
@@ -21,6 +22,7 @@ export default function MapScreen({ go }: { go: Go }) {
   const { venues, center, loading, error, locating, useMyLocation, byId } = useVenues();
   const [near, setNear] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
+  const samples = useSamples();
 
   const pins = useMemo(() => visitedPins(S.posts, byId), [S.posts, venues]); // eslint-disable-line react-hooks/exhaustive-deps
   const mission = S.mission && Date.now() - S.mission.at < DAY ? S.mission : null;
@@ -102,11 +104,18 @@ export default function MapScreen({ go }: { go: Go }) {
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Btn small label="調査を始める" onPress={() => go('post')} />
             <Btn small kind="ghost" label="ルーレットで決める" onPress={() => go('roulette')} />
+            <Btn small kind="ghost" label="🧪 見本を入れてみる" onPress={samples.add} />
           </View>
         </Card>
       ) : (
         <View style={{ gap: 8 }}>
           <Lbl>調査した場所（新しい順）</Lbl>
+          {samples.has ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Muted>見本が入っています（この端末だけ）。</Muted>
+              <Btn small kind="ghost" label="🧹 見本を消す" onPress={samples.clear} />
+            </View>
+          ) : null}
           {pins.map((p) => (
             <Card key={p.id}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>

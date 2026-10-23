@@ -3,6 +3,7 @@ import { Image, ScrollView, Text, View } from 'react-native';
 import { addPasskey, deleteAccount, fetchMe, friendly, logout, passkeySupported } from './account';
 import { RANKS } from './data';
 import { SYNC_DONE } from './sync';
+import { useSamples } from './sample';
 import { TermsSheet } from './TermsSheet';
 import { TERMS_VERSION } from './terms';
 import { supabase } from './supabase';
@@ -26,6 +27,7 @@ export default function My() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pkErr, setPkErr] = useState('');
   const [showTerms, setShowTerms] = useState(false);
+  const samples = useSamples();
   const r = rankOf(S.pt);
   const idx = RANKS.indexOf(r);
   const next = RANKS[idx + 1];
@@ -116,7 +118,7 @@ export default function My() {
             <Card key={p.id}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: '800', color: C.ink, flexShrink: 1 }}>{p.venueName}</Text>
-                <Text style={{ fontFamily: mono, color: C.good, fontWeight: '800' }}>+{p.pts}pt</Text>
+                {p.sample ? <Text style={{ fontFamily: mono, color: C.amber, fontWeight: '800' }}>見本</Text> : <Text style={{ fontFamily: mono, color: C.good, fontWeight: '800' }}>+{p.pts}pt</Text>}
               </View>
               <Text style={{ color: C.ink2 }}>{p.dish} ／ 満足度 {p.sat}{p.first ? ' ／ 初訪問' : ''}</Text>
               {p.photos?.length ? (
@@ -133,7 +135,7 @@ export default function My() {
                 </Muted>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <Btn small kind="ghost" label="訂正する" onPress={() => openEdit(p)} />
+                {p.sample ? null : <Btn small kind="ghost" label="訂正する" onPress={() => openEdit(p)} />}
                 {p.rouletteId && !p.rev ? <Btn small label="ルーレットの事後評価" onPress={() => setRev(p)} /> : null}
                 {p.rev ? <Muted>事後評価：{p.rev}</Muted> : null}
               </View>
@@ -152,6 +154,15 @@ export default function My() {
           </View>
         ))}
       </View>
+
+      <Card>
+        <Lbl>見本データ</Lbl>
+        <Muted>
+          地図や調査履歴の見え方を試すための見本です。近くの実在の店に、調査済みの記録を5件と、今日の指令を入れます。
+          この端末の中だけに保存され、サーバへは送らず、ポイントにも数えません。いつでも消せます。
+        </Muted>
+        <Btn small kind="ghost" label={samples.has ? '🧹 見本を消す' : '🧪 見本を入れてみる'} onPress={samples.has ? samples.clear : samples.add} style={{ alignSelf: 'flex-start' }} />
+      </Card>
 
       <Card>
         <Lbl>利用規約への同意</Lbl>

@@ -164,7 +164,7 @@ export function VenueDetail({ id, go }: { id: string; go: Go }) {
         </Card>
         {mine.map((p) => (
           <Card key={p.id}>
-            <Text style={{ fontWeight: '800', color: C.ink }}>あなたの調査　<Text style={{ color: C.amber }}>満足度 {p.sat}</Text></Text>
+            <Text style={{ fontWeight: '800', color: C.ink }}>あなたの調査{p.sample ? '（見本）' : ''}　<Text style={{ color: C.amber }}>満足度 {p.sat}</Text></Text>
             <Text style={{ color: C.ink2 }}>{p.dish}{p.vals.price ? ` ／ ¥${Number(p.vals.price).toLocaleString()}` : ''}</Text>
             {p.photos?.length ? (
                 <View style={{ flexDirection: 'row', gap: 6 }}>
