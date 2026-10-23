@@ -17,6 +17,7 @@ import Roulette from './src/Roulette';
 import { Search, VenueDetail } from './src/Search';
 import My from './src/My';
 import Help from './src/Help';
+import MapScreen from './src/MapScreen';
 import Report from './src/Report';
 import { VenueProvider } from './src/venues';
 import { rankIndexOf, rankOf, StoreProvider, useStore } from './src/store';
@@ -28,6 +29,7 @@ const TABS: { k: Screen; icon: string; label: string }[] = [
   { k: 'post', icon: '✍️', label: '投稿' },
   { k: 'palette', icon: '🗂️', label: '入力項目' },
   { k: 'search', icon: '🔍', label: 'さがす' },
+  { k: 'map', icon: '🗺️', label: '地図' },
   { k: 'roulette', icon: '🎯', label: 'ルーレット' },
   { k: 'my', icon: '🎖️', label: 'マイページ' },
   { k: 'help', icon: '📖', label: 'ヘルプ' },
@@ -199,6 +201,7 @@ function Shell() {
                 {scr === 'venue' && <VenueDetail id={venueId} go={go} />}
                 {scr === 'roulette' && <Roulette go={go} />}
                 {scr === 'my' && <My />}
+                {scr === 'map' && <MapScreen go={go} />}
                 {scr === 'help' && <Help go={go} />}
                 {scr === 'report' && <Report go={go} from={prev} />}
               </View>

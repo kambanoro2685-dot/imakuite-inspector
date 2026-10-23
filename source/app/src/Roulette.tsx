@@ -93,6 +93,7 @@ export default function Roulette({ go }: { go: Go }) {
   const goThere = () => {
     if (!win) return;
     setD((x) => ({ ...x, venue: win.id, rouletteId: rid }));
+    update((st) => ({ ...st, mission: { id: win.id, n: win.n, g: win.g, lat: win.lat, lng: win.lng, at: Date.now() } }));
     showToast('ルーレット由来の投稿として記録します（+15pt）。');
     go('post');
   };

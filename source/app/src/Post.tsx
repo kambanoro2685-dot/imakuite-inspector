@@ -97,7 +97,7 @@ export default function PostScreen({ go }: { go: Go }) {
       first, pts, rouletteId: D.rouletteId, t: Date.now(), edits: [],
       sync: S.account && signedIn ? { key: uuid4(), dishId: uuid4(), step: 0 } : undefined,
     };
-    update((st) => ({ ...st, posts: [post, ...st.posts], visited: first ? [...st.visited, v.id] : st.visited }));
+    update((st) => ({ ...st, posts: [post, ...st.posts], visited: first ? [...st.visited, v.id] : st.visited, mission: st.mission?.id === v.id ? null : st.mission }));
     if (post.sync) {
       // アカウントがあるときのポイントはサーバが計算する（端末では加点しない）
       showToast('提出しました。サーバでポイントを計算します…');

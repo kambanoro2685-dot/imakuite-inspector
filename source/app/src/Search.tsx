@@ -33,7 +33,6 @@ export function Search({ go }: { go: Go }) {
   const [g, setG] = useState('すべて');
   const [sort, setSort] = useState<Sort>('おすすめ順');
   const [q, setQ] = useState('');
-  const [mode, setMode] = useState<'list' | 'map'>('list');
   const [limit, setLimit] = useState(30);
 
   const fav = (v: Venue) => (S.profile.favorites.includes(v.g) ? 1 : 0);
@@ -72,69 +71,36 @@ export function Search({ go }: { go: Go }) {
         </Card>
       ) : null}
 
+      <Btn small kind="ghost" label={`🗺️ 地図で見る（調査 ${pins.length}か所）`} onPress={() => go('map')} style={{ alignSelf: 'flex-start' }} />
+
+      <Input value={q} onChangeText={(t) => { setQ(t); setLimit(30); }} placeholder="店名で絞り込む（例：らーめん）" />
       <Chips>
-        <Chip label="📋 店の一覧" on={mode === 'list'} onPress={() => setMode('list')} />
-        <Chip label={`🗺️ 調査マップ（${pins.length}）`} on={mode === 'map'} onPress={() => setMode('map')} />
+        {genres.map((x) => (
+          <Chip key={x} label={x} on={g === x} onPress={() => { setG(x); setLimit(30); }} />
+        ))}
+      </Chips>
+      <Chips>
+        {SORTS.map((x) => (
+          <Chip key={x} label={x} on={sort === x} onPress={() => setSort(x)} />
+        ))}
       </Chips>
 
-      {mode === 'list' ? (
-        <>
-          <Input value={q} onChangeText={(t) => { setQ(t); setLimit(30); }} placeholder="店名で絞り込む（例：らーめん）" />
-          <Chips>
-            {genres.map((x) => (
-              <Chip key={x} label={x} on={g === x} onPress={() => { setG(x); setLimit(30); }} />
-            ))}
-          </Chips>
-          <Chips>
-            {SORTS.map((x) => (
-              <Chip key={x} label={x} on={sort === x} onPress={() => setSort(x)} />
-            ))}
-          </Chips>
-        </>
-      ) : null}
-
-      {mode === 'map' ? (
-        <View style={{ gap: 8 }}>
-          <MapView
-            height={380}
-            center={pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : center}
-            markers={[
-              ...(center.source === 'gps' ? [{ id: 'me', lat: center.lat, lng: center.lng, kind: 'me' as const, label: '現在地' }] : []),
-              ...pins.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, label: pinLabel(p) })),
-            ]}
-            onSelect={(id) => go('venue', id)}
-          />
-          {pins.length === 0 ? (
-            <Card>
-              <Text style={{ color: C.ink, fontWeight: '800' }}>📍 まだ何も調査していません</Text>
-              <Muted>調査報告を提出すると、その店がこの地図に追加されます。あなたが歩いた場所だけが、少しずつ地図に増えていきます。</Muted>
-              <Btn small label="調査を始める" onPress={() => go('post')} style={{ alignSelf: 'flex-start' }} />
-            </Card>
-          ) : (
-            <Muted>調査した {pins.length} か所。ピンを押すと店の詳細が開きます。</Muted>
-          )}
-          <Credit />
-        </View>
-      ) : (
-        <>
-          {shown.map((v) => (
-            <Pressable key={v.id} onPress={() => go('venue', v.id)} style={[s.card, { gap: 6 }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink, flexShrink: 1 }}>{v.n}</Text>
-                <Text style={{ fontFamily: mono, fontSize: 12, color: C.ink3 }}>{base}から 徒歩{walkMin(v.dist)}分</Text>
-              </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                <Tag t={v.g} />
-                <Tag t={v.reviews ? `${v.reviews + mine(v.id)}人が評価` : '調査待ち'} kind={v.reviews ? 'cnt' : undefined} />
-                {S.profile.favorites.includes(v.g) ? <Tag t="好みに合う" /> : null}
-                {!S.visited.includes(v.id) ? <Tag t="未訪問 +30pt" kind="new" /> : null}
-              </View>
-            </Pressable>
-          ))}
-          {list.length > shown.length ? <Btn kind="ghost" label={`さらに表示（残り${list.length - shown.length}件）`} onPress={() => setLimit(limit + 30)} /> : null}
-          <Credit />
-        </>
-      )}
+      {shown.map((v) => (
+        <Pressable key={v.id} onPress={() => go('venue', v.id)} style={[s.card, { gap: 6 }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink, flexShrink: 1 }}>{v.n}</Text>
+            <Text style={{ fontFamily: mono, fontSize: 12, color: C.ink3 }}>{base}から 徒歩{walkMin(v.dist)}分</Text>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            <Tag t={v.g} />
+            <Tag t={v.reviews ? `${v.reviews + mine(v.id)}人が評価` : '調査待ち'} kind={v.reviews ? 'cnt' : undefined} />
+            {S.profile.favorites.includes(v.g) ? <Tag t="好みに合う" /> : null}
+            {!S.visited.includes(v.id) ? <Tag t="未訪問 +30pt" kind="new" /> : null}
+          </View>
+        </Pressable>
+      ))}
+      {list.length > shown.length ? <Btn kind="ghost" label={`さらに表示（残り${list.length - shown.length}件）`} onPress={() => setLimit(limit + 30)} /> : null}
+      <Credit />
     </ScrollView>
   );
 }

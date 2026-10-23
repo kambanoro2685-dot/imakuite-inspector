@@ -46,6 +46,8 @@ export type State = {
   profile: Profile;
   /** 同意した利用規約の版。synced=false はサーバへ記録できていない（接続できたら送る） */
   terms: { version: string; at: number; synced: boolean } | null;
+  /** ルーレットで「ここに行く」を押した店（今日の指令）。24時間、地図に載る */
+  mission: { id: string; n: string; g: string; lat: number; lng: number; at: number } | null;
   pt: number;
   trust: number;
   visited: string[]; // 訪問済みの shop.id
@@ -76,6 +78,7 @@ export function freshState(): State {
     account: null,
     profile: { nickname: '', nationality: '日本', gender: '', age: '', allergies: '', favorites: [] },
     terms: null,
+    mission: null,
     pt: 0,
     trust: 50,
     visited: [],

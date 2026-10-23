@@ -91,6 +91,15 @@ export default function Home({ go }: { go: Go }) {
         </Card>
       ) : null}
 
+      {S.mission && Date.now() - S.mission.at < 24 * 3600e3 ? (
+        <Card>
+          <Lbl>🎯 今日の指令</Lbl>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink }}>{S.mission.n}</Text>
+          <Muted>ルーレットで決めた店です。調査を提出すると、地図に残ります。</Muted>
+          <Btn small kind="ghost" label="🗺️ 地図で見る" onPress={() => go('map')} style={{ alignSelf: 'flex-start' }} />
+        </Card>
+      ) : null}
+
       <Card flat>
         <Lbl>迷っているなら</Lbl>
         <Btn kind="amber" label="🎯 ルーレットで決める" onPress={() => go('roulette')} />
