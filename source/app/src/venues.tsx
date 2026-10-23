@@ -12,6 +12,8 @@ export type Venue = {
   url: string | null;
   /** 評価件数。3件未満は null（調査待ち） */
   reviews: number | null;
+  /** 階級ごとの調査件数 [見習い,三等,二等,一等,主任,特別監察官]。3件未満は null */
+  ranks: number[] | null;
   /** 基準点（現在地 or 岡山駅）からの距離[m] */
   dist: number;
 };
@@ -57,7 +59,7 @@ export function VenueProvider({ children }: { children: React.ReactNode }) {
     }
     const list: Venue[] = ((data as any[]) ?? []).map((r) => ({
       id: r.id, n: r.name, g: r.genre ?? 'その他', lat: r.lat, lng: r.lng, url: r.url ?? null,
-      reviews: r.review_count ?? null, dist: r.distance_m ?? 0,
+      reviews: r.review_count ?? null, ranks: r.rank_counts ?? null, dist: r.distance_m ?? 0,
     }));
     list.forEach((v) => seen.current.set(v.id, v));
     setVenues(list);

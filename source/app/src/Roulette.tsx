@@ -5,7 +5,7 @@ import { googleMapsUrl, googleRouteUrl, openUrl } from './maps';
 import MapView from './MapView';
 import { Go } from './nav';
 import { visitedPins, pinLabel } from './pins';
-import { Credit } from './Search';
+import { Credit, RankMix } from './Search';
 import { today, useStore } from './store';
 import { C, mono } from './theme';
 import { Venue, useVenues, walkMin } from './venues';
@@ -150,6 +150,7 @@ export default function Roulette({ go }: { go: Go }) {
           <Text style={{ fontFamily: mono, fontSize: 11, color: C.crit, fontWeight: '800' }}>RESULT ／ 本日の指令</Text>
           <Text style={{ fontSize: 22, fontWeight: '800', color: C.ink }}>{win.n}</Text>
           <Muted>{win.g} ／ {base}から 徒歩{walkMin(win.dist)}分（約{win.dist.toLocaleString()}m）{S.visited.includes(win.id) ? '' : ' ／ 未訪問'}</Muted>
+          {win.ranks ? <RankMix ranks={win.ranks} big /> : <Muted>調査した人の階級: まだ3件未満のため表示できません（調査待ち）</Muted>}
 
           <MapView
             height={260}

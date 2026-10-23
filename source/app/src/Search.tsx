@@ -25,6 +25,25 @@ function Tag({ t, kind }: { t: string; kind?: 'new' | 'cnt' }) {
   );
 }
 
+const RANK_SHORT = ['見習い', '三等', '二等', '一等', '主任', '特別監察官'];
+
+/** この店を調査した人の階級の内訳（3件以上のときだけ。個人は特定できない） */
+export function RankMix({ ranks, big }: { ranks: number[] | null; big?: boolean }) {
+  if (!ranks) return null;
+  const items = ranks.map((n, i) => ({ n, i })).filter((x) => x.n > 0).reverse();
+  if (!items.length) return null;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+      <Text style={{ fontSize: big ? 12.5 : 11.5, color: C.ink3, fontWeight: '700' }}>調査した人の階級</Text>
+      {items.map((x) => (
+        <View key={x.i} style={{ backgroundColor: x.i >= 3 ? C.amberSoft : C.surface2, borderRadius: 3, paddingHorizontal: 7, paddingVertical: 3 }}>
+          <Text style={{ fontSize: big ? 12.5 : 11.5, color: x.i >= 3 ? C.amber : C.ink2, fontWeight: '700' }}>{RANK_SHORT[x.i]} {x.n}人</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export const Credit = () => <Muted>地図・店舗データ: © OpenStreetMap contributors。情報が古い場合があります（閉店・移転など）。</Muted>;
 
 export function Search({ go }: { go: Go }) {
@@ -97,6 +116,7 @@ export function Search({ go }: { go: Go }) {
             {S.profile.favorites.includes(v.g) ? <Tag t="好みに合う" /> : null}
             {!S.visited.includes(v.id) ? <Tag t="未訪問 +30pt" kind="new" /> : null}
           </View>
+          <RankMix ranks={v.ranks} />
         </Pressable>
       ))}
       {list.length > shown.length ? <Btn kind="ghost" label={`さらに表示（残り${list.length - shown.length}件）`} onPress={() => setLimit(limit + 30)} /> : null}
@@ -110,7 +130,7 @@ export function VenueDetail({ id, go }: { id: string; go: Go }) {
   const { setD } = useDraft();
   const { byId, center } = useVenues();
   const post0 = S.posts.find((p) => p.venue === id && p.lat != null);
-  const v: Venue | undefined = byId(id) ?? (post0 ? { id, n: post0.venueName, g: post0.genre ?? 'その他', lat: post0.lat!, lng: post0.lng!, url: null, reviews: null, dist: 0 } : undefined);
+  const v: Venue | undefined = byId(id) ?? (post0 ? { id, n: post0.venueName, g: post0.genre ?? 'その他', lat: post0.lat!, lng: post0.lng!, url: null, reviews: null, ranks: null, dist: 0 } : undefined);
   if (!v) {
     return (
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -161,6 +181,7 @@ export function VenueDetail({ id, go }: { id: string; go: Go }) {
           <Text style={{ color: C.ink, fontWeight: '800' }}>
             {v.reviews ? `${v.reviews + mine.length}人の調査官が評価しています` : 'まだ調査待ちです（3件集まると評価が表示されます）'}
           </Text>
+          <RankMix ranks={v.ranks} big />
         </Card>
         {mine.map((p) => (
           <Card key={p.id}>
